@@ -121,9 +121,9 @@ export const api = {
     return (data ?? []) as Notification[];
   },
 
-  // Mes annonces encore actives (trajets en mode conducteur, recherches en mode passager).
+  // Mes annonces en cours (trajets en mode conducteur, recherches en mode passager).
+  // Une recherche déjà acceptée reste listée : c'est le « dossier » qui porte le trajet confirmé.
   async listings(mode: Mode, uid: string): Promise<Listing[]> {
-    const now = new Date().toISOString();
     const q =
       mode === 'driver'
         ? supabase
@@ -135,10 +135,10 @@ export const api = {
             .from('requests')
             .select('id,origin_label,dest_label,window_start,window_end,seats,note')
             .eq('passenger_id', uid)
-            .eq('status', 'open');
-    const { data, error } = await q.gt('window_end', now).order('window_start');
+            .in('status', ['open', 'matched']);
+    const { data, error } = await q.order('window_start', { ascending: false }).limit(20);
     if (error) throw new Error(error.message);
-    return (data ?? []) as Listing[];
+    return ((data ?? []) as Listing[]).reverse();
   },
 
   async candidates(mode: Mode, listingId: string): Promise<Candidate[]> {

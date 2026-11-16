@@ -43,7 +43,7 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
   async function run(action: () => Promise<unknown>, success?: string) {
     setBusy(true);
     try {
-      const result = await action();
+      await action();
       if (success) notify(success);
       await load();
       onChanged();
@@ -52,14 +52,6 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
     }
     setBusy(false);
   }
-
-  const toAnswer = matches.filter((m) => m.status === 'proposed' && !m.proposed_by_me);
-  const live = matches.filter((m) => m.status === 'accepted');
-  const waiting = matches.filter((m) => m.status === 'proposed' && m.proposed_by_me);
-  const toReview = matches.filter((m) => m.status === 'completed' && !m.reviewed_by_me);
-  const done = matches.filter((m) => m.status === 'completed' && m.reviewed_by_me).slice(0, 3);
-  // Une paire trajet/demande déjà mise en relation ne peut plus être proposée.
-  const paired = new Set(matches.map((m) => m.trip_id + m.request_id));
 
   if (showForm) {
     return (
@@ -75,7 +67,97 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
     );
   }
 
-  const empty = loaded && !toAnswer.length && !live.length && !waiting.length && !listings.length && !toReview.length;
+  const active = matches.filter((m) => m.status === 'proposed' || m.status === 'accepted');
+  const toReview = matches.filter((m) => m.status === 'completed' && !m.reviewed_by_me);
+  const done = matches.filter((m) => m.status === 'completed' && m.reviewed_by_me).slice(0, 3);
+  // Une paire trajet/demande déjà mise en relation ne peut plus être proposée.
+  const paired = new Set(matches.map((m) => m.trip_id + m.request_id));
+  const listingOf = (m: Match) => (driver ? m.trip_id : m.request_id);
+  const now = Date.now();
+
+  // Un « dossier » par annonce : tout ce qui concerne ce trajet est dans la même case.
+  const folders = listings
+    .map((l) => ({
+      l,
+      mine: active.filter((m) => listingOf(m) === l.id),
+      found: (candidates[l.id] ?? []).filter((c) => !paired.has(c.trip_id + c.request_id)),
+    }))
+    // Une annonce dont le créneau est passé ne reste affichée que s'il s'y passe encore quelque chose.
+    .filter((f) => f.mine.length > 0 || new Date(f.l.window_end).getTime() > now);
+  const known = new Set(listings.map((l) => l.id));
+  const orphans = active.filter((m) => !known.has(listingOf(m)));
+
+  const empty = loaded && !folders.length && !orphans.length && !toReview.length;
+
+  const person = (m: Match) => () => setViewUser({ id: m.other_id, name: m.other_name });
+
+  function matchBlock(m: Match) {
+    if (m.status === 'accepted') {
+      return (
+        <div className="block" key={m.id}>
+          <MatchCard
+            m={m}
+            busy={busy}
+            onAdvance={() => run(() => api.advance(m.id))}
+            onUser={person(m)}
+            onCancel={() =>
+              setAsk({
+                text: `Annuler ton trajet avec ${m.other_name} ? ${m.other_name} sera prévenu.`,
+                yes: 'Oui, annuler',
+                run: () => run(() => api.cancelMatch(m.id), 'Trajet annulé'),
+              })
+            }
+          />
+        </div>
+      );
+    }
+    if (!m.proposed_by_me) {
+      return (
+        <div className="block answer" key={m.id}>
+          <span className="block-tag">À toi de répondre</span>
+          <div className="contact">
+            <div className="avatar">{m.other_name.charAt(0).toUpperCase()}</div>
+            <button className="contact-info person" onClick={person(m)}>
+              <strong>{driver ? `${m.other_name} demande une place` : `${m.other_name} te propose une place`}</strong>
+              <Rating rating={m.other_rating} reviews={m.other_reviews} />
+              <small>
+                {driver ? `Montée : ${m.pickup_label}` : `${m.trip_origin_label} → ${m.trip_dest_label}`}
+              </small>
+              <small>
+                {fmt(m.meet_at)}
+                {m.cost_share_cents > 0 && ` · ${euros(m.cost_share_cents)}`}
+                {driver && m.seats > 1 && ` · ${m.seats} personnes`}
+              </small>
+              {driver && m.note && <small className="note">« {m.note} »</small>}
+            </button>
+          </div>
+          <div className="row2">
+            <button className="primary" disabled={busy} onClick={() => run(() => api.respond(m.id, true), 'Trajet confirmé !')}>
+              Accepter
+            </button>
+            <button className="ghost" disabled={busy} onClick={() => run(() => api.respond(m.id, false))}>
+              Refuser
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="block" key={m.id}>
+        <div className="contact">
+          <div className="avatar pending">⏳</div>
+          <button className="contact-info person" onClick={person(m)}>
+            <strong>En attente de la réponse de {m.other_name}</strong>
+            <Rating rating={m.other_rating} reviews={m.other_reviews} />
+            <small>{fmt(m.meet_at)}</small>
+          </button>
+          <button className="ghost small" disabled={busy} onClick={() => run(() => api.cancelMatch(m.id))}>
+            Retirer
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -108,77 +190,15 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
         />
       ))}
 
-      {toAnswer.length > 0 && <h3 className="section">À toi de répondre</h3>}
-      {toAnswer.map((m) => (
-        <div className="card highlight" key={m.id}>
-          <div className="contact">
-            <div className="avatar">{m.other_name.charAt(0).toUpperCase()}</div>
-            <button className="contact-info person" onClick={() => setViewUser({ id: m.other_id, name: m.other_name })}>
-              <strong>{driver ? `${m.other_name} demande une place` : `${m.other_name} te propose une place`}</strong>
-              <Rating rating={m.other_rating} reviews={m.other_reviews} />
-              <small>
-                {m.pickup_label} → {m.dropoff_label}
-              </small>
-              <small>
-                {fmt(m.meet_at)}
-                {m.cost_share_cents > 0 && ` · ${euros(m.cost_share_cents)}`}
-                {driver && m.seats > 1 && ` · ${m.seats} personnes`}
-              </small>
-              {driver && m.note && <small className="note">« {m.note} »</small>}
-            </button>
-          </div>
-          <div className="row2">
-            <button className="primary" disabled={busy} onClick={() => run(() => api.respond(m.id, true), 'Trajet confirmé !')}>
-              Accepter
-            </button>
-            <button className="ghost" disabled={busy} onClick={() => run(() => api.respond(m.id, false))}>
-              Refuser
-            </button>
-          </div>
-        </div>
-      ))}
-
-      {live.length > 0 && <h3 className="section">{live.length > 1 ? 'Tes trajets confirmés' : 'Ton trajet confirmé'}</h3>}
-      {live.map((m) => (
-        <MatchCard
-          key={m.id}
-          m={m}
-          busy={busy}
-          onAdvance={() => run(() => api.advance(m.id))}
-          onUser={() => setViewUser({ id: m.other_id, name: m.other_name })}
-          onCancel={() =>
-            setAsk({
-              text: `Annuler ton trajet avec ${m.other_name} ? ${m.other_name} sera prévenu.`,
-              yes: 'Oui, annuler',
-              run: () => run(() => api.cancelMatch(m.id), 'Trajet annulé'),
-            })
-          }
-        />
-      ))}
-
-      {waiting.length > 0 && <h3 className="section">En attente de réponse</h3>}
-      {waiting.map((m) => (
-        <div className="card" key={m.id}>
-          <div className="contact">
-            <div className="avatar pending">⏳</div>
-            <div className="contact-info">
-              <strong>En attente de {m.other_name}</strong>
-              <small>
-                {m.pickup_label} → {m.dropoff_label} · {fmt(m.meet_at)}
-              </small>
-            </div>
-            <button className="ghost small" disabled={busy} onClick={() => run(() => api.cancelMatch(m.id))}>
-              Retirer
-            </button>
-          </div>
-        </div>
-      ))}
-
-      {listings.length > 0 && <h3 className="section">{driver ? 'Mes trajets publiés' : 'Mes recherches'}</h3>}
-      {listings.map((l) => {
-        const list = (candidates[l.id] ?? []).filter((c) => !paired.has(c.trip_id + c.request_id));
+      {folders.length > 0 && <h3 className="section">{driver ? 'Mes trajets' : 'Mes recherches'}</h3>}
+      {folders.map(({ l, mine, found }) => {
+        const confirmed = mine.some((m) => m.status === 'accepted');
+        const left = (l.seats ?? 0) - (l.seats_taken ?? 0);
+        // Passager : une fois le trajet confirmé, on ne propose plus d'autres conducteurs.
+        const showFound = driver ? left > 0 : !confirmed;
+        const toAnswer = mine.filter((m) => m.status === 'proposed' && !m.proposed_by_me).length;
         return (
-          <div className="card" key={l.id}>
+          <div className={toAnswer ? 'card folder highlight' : 'card folder'} key={l.id}>
             <div className="listing-head">
               <div>
                 <strong>
@@ -186,7 +206,7 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
                 </strong>
                 <small>
                   {fmt(l.window_start)} – {fmtTime(l.window_end)}
-                  {driver && l.seats != null && ` · ${l.seats - (l.seats_taken ?? 0)} place(s) libre(s)`}
+                  {driver && (left > 0 ? ` · ${left} place(s) libre(s)` : ' · complet')}
                   {!driver && (l.seats ?? 1) > 1 && ` · ${l.seats} personnes`}
                 </small>
                 {!driver && l.note && <small className="note">« {l.note} »</small>}
@@ -196,7 +216,9 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
                 disabled={busy}
                 onClick={() =>
                   setAsk({
-                    text: driver ? 'Supprimer ce trajet publié ?' : 'Supprimer cette recherche ?',
+                    text:
+                      (driver ? 'Supprimer ce trajet ?' : 'Supprimer cette recherche ?') +
+                      (mine.length ? ' Les personnes concernées seront prévenues.' : ''),
                     yes: 'Oui, supprimer',
                     run: () => run(() => (driver ? api.cancelTrip(l.id) : api.cancelRequest(l.id)), 'Supprimé'),
                   })
@@ -205,14 +227,15 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
                 Supprimer
               </button>
             </div>
-            {list.length === 0 ? (
-              <p className="muted searching">
-                <span className="pulse" /> {driver ? 'Recherche de passagers sur ta route…' : 'Recherche de conducteurs sur ta route…'}
-              </p>
-            ) : (
-              <ul className="candidates">
-                {list.map((c) => (
-                  <li key={c.trip_id + c.request_id}>
+
+            {mine.filter((m) => m.status === 'accepted').map(matchBlock)}
+            {mine.filter((m) => m.status === 'proposed' && !m.proposed_by_me).map(matchBlock)}
+            {mine.filter((m) => m.status === 'proposed' && m.proposed_by_me).map(matchBlock)}
+
+            {showFound &&
+              found.map((c) => (
+                <div className="block" key={c.trip_id + c.request_id}>
+                  <div className="contact">
                     <div className="avatar">{c.name.charAt(0).toUpperCase()}</div>
                     <button className="contact-info person" onClick={() => setViewUser({ id: c.user_id, name: c.name })}>
                       <strong>{c.name}</strong>
@@ -235,13 +258,25 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
                     >
                       {driver ? 'Proposer' : 'Demander'}
                     </button>
-                  </li>
-                ))}
-              </ul>
+                  </div>
+                </div>
+              ))}
+
+            {showFound && found.length === 0 && mine.length === 0 && (
+              <p className="muted searching block">
+                <span className="pulse" /> {driver ? 'Recherche de passagers sur ta route…' : 'Recherche de conducteurs sur ta route…'}
+              </p>
             )}
           </div>
         );
       })}
+
+      {orphans.length > 0 && (
+        <div className="card folder">
+          <strong>Autres trajets en cours</strong>
+          {orphans.map(matchBlock)}
+        </div>
+      )}
 
       {done.length > 0 && <h3 className="section">Derniers trajets</h3>}
       {done.map((m) => (

@@ -32,7 +32,7 @@ export function MatchCard({ m, busy, onAdvance, onCancel, onUser }: Props) {
   }
 
   return (
-    <div className="card live">
+    <div className="live embedded">
       <div className="live-head">
         <span className="live-emoji">{emoji}</span>
         <div>

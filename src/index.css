@@ -313,3 +313,14 @@ input, textarea { padding: 0.5rem 0.6rem; border-radius: 9px; }
 .vehicle > div { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .plate { background: #fff; border: 1.5px solid var(--ink); border-radius: 5px; padding: 1px 7px; font-weight: 800; letter-spacing: 0.06em; font-size: 0.85rem; }
 .note { font-style: italic; color: var(--ink); }
+
+/* Dossier : une case par trajet, avec tout ce qui s'y rapporte */
+.folder { gap: 0; }
+.folder .listing-head { padding-bottom: 0.5rem; }
+.block { border-top: 1px solid var(--line); padding: 0.55rem 0; display: grid; gap: 0.45rem; }
+.block:last-child { padding-bottom: 0; }
+.block.answer { background: var(--brand-soft); margin: 0 -0.7rem; padding: 0.55rem 0.7rem; border-top: 0; }
+.block.answer:last-child { margin-bottom: -0.7rem; padding-bottom: 0.7rem; border-radius: 0 0 11px 11px; }
+.block-tag { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--brand-dark); }
+.live.embedded { border-top: 0; display: grid; gap: 0.5rem; }
+p.block { margin: 0; }
