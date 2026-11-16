@@ -85,6 +85,16 @@ export default function App() {
     if (!uid) return;
     lastNotifId.current = 0;
     loadNotifs();
+    // Après une connexion par code (mot de passe oublié), on invite à en choisir un nouveau.
+    try {
+      if (sessionStorage.getItem('covoitgo-nouveau-mdp')) {
+        sessionStorage.removeItem('covoitgo-nouveau-mdp');
+        setTab('profile');
+        notify('Connecté. Choisis un nouveau mot de passe dans « Mon compte ».');
+      }
+    } catch {
+      /* stockage indisponible */
+    }
     const channel = supabase
       .channel('notifications-' + uid)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${uid}` }, loadNotifs)
@@ -97,7 +107,7 @@ export default function App() {
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [uid, loadNotifs]);
+  }, [uid, loadNotifs, notify]);
 
   const unsubscribe = new URLSearchParams(window.location.search).get('unsubscribe');
   if (unsubscribe) return <Unsubscribe token={unsubscribe} />;

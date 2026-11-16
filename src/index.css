@@ -337,3 +337,6 @@ p.block { margin: 0; }
 .badge-chips { margin: 0.4rem 0; }
 .badge-chips .chip { font-size: 0.78rem; cursor: default; }
 .sheet-head .contact { min-width: 0; }
+
+/* Saisie d'un code reçu par e-mail */
+.code-input { font-size: 1.5rem; letter-spacing: 0.3em; text-align: center; font-weight: 700; }

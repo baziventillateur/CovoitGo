@@ -3,6 +3,7 @@ import { supabase } from './supabase';
 import { api, type Notify } from './api';
 import { ReviewList, UserSheet } from './Reviews';
 import { levelOf } from './levels';
+import { Account } from './Account';
 import { playSound, setSoundsEnabled, soundsEnabled, unlockSounds } from './sounds';
 
 type Badge = { code: string; label: string; description: string; trips_required: number };
@@ -126,6 +127,9 @@ export function Profile({ uid, notify }: { uid: string; notify: Notify }) {
           Enregistrer
         </button>
       </div>
+
+      <h3 className="section">Mon compte</h3>
+      <Account notify={notify} />
 
       <h3 className="section">E-mails</h3>
       <div className="card form">
