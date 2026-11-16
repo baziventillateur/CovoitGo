@@ -11,6 +11,7 @@ au conducteur, points et badges. Pas de paiement dans le MVP.
 - `supabase/migrations/0002_experience.sql` : notifications, étapes de trajet, téléphone privé, anti-doublons.
 - `supabase/migrations/0003_avis.sql` : avis (étoiles + commentaire), note moyenne, parcours mené par le conducteur seul.
 - `supabase/migrations/0004_places_vehicule.sql` : nombre de places et commentaire sur une demande, véhicule du conducteur.
+- `supabase/migrations/0005_depart_assistance.sql` : trajet parti masqué, trajet terminé clos, réclamations (assistance).
 - `src/` : PWA React + TypeScript (Vite), en deux modes Conducteur / Passager :
   - `App.tsx` : session, choix du mode, cloche de notifications (temps réel + relève toutes les 20 s).
   - `Home.tsx` : accueil du mode (réponses à donner, trajets confirmés, annonces et personnes compatibles).

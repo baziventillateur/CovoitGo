@@ -324,3 +324,16 @@ input, textarea { padding: 0.5rem 0.6rem; border-radius: 9px; }
 .block-tag { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--brand-dark); }
 .live.embedded { border-top: 0; display: grid; gap: 0.5rem; }
 p.block { margin: 0; }
+
+/* Assistance */
+.card-foot { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.sheet.form { display: grid; gap: 0.5rem; }
+.urgent { background: #fef2f2; color: var(--danger); font-weight: 700; font-size: 0.85rem; padding: 0.4rem 0.6rem; border-radius: 9px; }
+.link-btn { display: block; text-align: center; text-decoration: none; }
+
+/* Fiche publique et prénoms cliquables */
+.name-link { display: inline; color: var(--brand); font-weight: 700; text-decoration: underline; font-size: inherit; }
+.level.fit { justify-self: start; font-size: 0.78rem; padding: 0.15rem 0.6rem; }
+.badge-chips { margin: 0.4rem 0; }
+.badge-chips .chip { font-size: 0.78rem; cursor: default; }
+.sheet-head .contact { min-width: 0; }

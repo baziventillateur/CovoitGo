@@ -39,6 +39,7 @@ export type Listing = {
   seats?: number;
   seats_taken?: number;
   note?: string | null;
+  status?: string;
 };
 
 export type Candidate = {
@@ -64,8 +65,11 @@ export type Review = {
   rating: number;
   comment: string | null;
   created_at: string;
+  author_id: string;
   author: { display_name: string } | null;
 };
+
+export type PublicProfile = { display_name: string; points: number; created_at: string; badges: string[] };
 
 export type Notification = {
   id: number;
@@ -97,13 +101,25 @@ export const api = {
   setVehicle: (model: string, color: string, plate: string) =>
     rpc<void>('set_vehicle', { p_model: model, p_color: color, p_plate: plate }),
   markRead: () => rpc<void>('mark_notifications_read'),
+  claim: (matchId: string, category: string, message: string) =>
+    rpc<void>('submit_claim', { p_match_id: matchId, p_category: category, p_message: message }),
   review: (matchId: string, rating: number, comment: string) =>
     rpc<void>('submit_review', { p_match_id: matchId, p_rating: rating, p_comment: comment }),
+
+  // Fiche publique d'une personne : jamais de téléphone ni de véhicule ici.
+  async publicProfile(userId: string): Promise<PublicProfile | null> {
+    const [p, b] = await Promise.all([
+      supabase.from('profiles').select('display_name,points,created_at').eq('id', userId).maybeSingle(),
+      supabase.from('user_badges').select('badges(label)').eq('user_id', userId),
+    ]);
+    if (!p.data) return null;
+    return { ...p.data, badges: (b.data ?? []).map((r: any) => r.badges?.label).filter(Boolean) };
+  },
 
   async reviews(userId: string): Promise<Review[]> {
     const { data, error } = await supabase
       .from('reviews')
-      .select('id,rating,comment,created_at,author:profiles!reviews_author_id_fkey(display_name)')
+      .select('id,rating,comment,created_at,author_id,author:profiles!reviews_author_id_fkey(display_name)')
       .eq('target_id', userId)
       .order('created_at', { ascending: false })
       .limit(50);
@@ -128,7 +144,7 @@ export const api = {
       mode === 'driver'
         ? supabase
             .from('trips')
-            .select('id,origin_label,dest_label,window_start,window_end,seats,seats_taken')
+            .select('id,origin_label,dest_label,window_start,window_end,seats,seats_taken,status')
             .eq('driver_id', uid)
             .in('status', ['open', 'full'])
         : supabase

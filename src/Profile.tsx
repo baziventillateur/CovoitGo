@@ -1,15 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
 import { api, type Notify } from './api';
-import { ReviewList } from './Reviews';
-
-const LEVELS = [
-  { min: 0, name: 'Nouveau venu', emoji: '🌱' },
-  { min: 50, name: 'Régulier', emoji: '🚙' },
-  { min: 150, name: 'Habitué', emoji: '⭐' },
-  { min: 400, name: 'Pilier', emoji: '🏆' },
-  { min: 1000, name: 'Légende', emoji: '👑' },
-];
+import { ReviewList, UserSheet } from './Reviews';
+import { levelOf } from './levels';
 
 type Badge = { code: string; label: string; description: string; trips_required: number };
 
@@ -20,6 +13,7 @@ export function Profile({ uid, notify }: { uid: string; notify: Notify }) {
   const [car, setCar] = useState({ model: '', color: '', plate: '' });
   const [badges, setBadges] = useState<Badge[]>([]);
   const [earned, setEarned] = useState<Set<string>>(new Set());
+  const [viewUser, setViewUser] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -41,9 +35,7 @@ export function Profile({ uid, notify }: { uid: string; notify: Notify }) {
     })();
   }, [uid]);
 
-  const levelIndex = LEVELS.reduce((acc, l, i) => (points >= l.min ? i : acc), 0);
-  const level = LEVELS[levelIndex];
-  const next = LEVELS[levelIndex + 1];
+  const { level, next } = levelOf(points);
   const progress = next ? Math.round(((points - level.min) / (next.min - level.min)) * 100) : 100;
 
   async function savePhone() {
@@ -93,7 +85,7 @@ export function Profile({ uid, notify }: { uid: string; notify: Notify }) {
 
       <h3 className="section">Mes avis reçus</h3>
       <div className="card">
-        <ReviewList userId={uid} />
+        <ReviewList userId={uid} onUser={(id, name) => setViewUser({ id, name })} />
       </div>
 
       <h3 className="section">Mon numéro</h3>
@@ -133,6 +125,7 @@ export function Profile({ uid, notify }: { uid: string; notify: Notify }) {
       <button className="ghost big" onClick={() => supabase.auth.signOut()}>
         Se déconnecter
       </button>
+      {viewUser && <UserSheet userId={viewUser.id} name={viewUser.name} onClose={() => setViewUser(null)} />}
     </>
   );
 }

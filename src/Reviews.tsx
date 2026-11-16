@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { api, type Review } from './api';
+import { api, type PublicProfile, type Review } from './api';
+import { levelOf } from './levels';
 import { ago } from './format';
 
 export function Rating({ rating, reviews }: { rating: number | null; reviews: number }) {
@@ -64,9 +65,10 @@ export function ReviewCard({ name, points, route, busy, onSubmit }: CardProps) {
   );
 }
 
-export function ReviewList({ userId }: { userId: string }) {
+export function ReviewList({ userId, onUser }: { userId: string; onUser?: (id: string, name: string) => void }) {
   const [items, setItems] = useState<Review[] | null>(null);
   useEffect(() => {
+    setItems(null);
     api.reviews(userId).then(setItems).catch(() => setItems([]));
   }, [userId]);
 
@@ -86,7 +88,13 @@ export function ReviewList({ userId }: { userId: string }) {
         {items.map((r) => (
           <li key={r.id}>
             <div className="review-head">
-              <strong>{r.author?.display_name ?? 'Utilisateur'}</strong>
+              {onUser && r.author ? (
+                <button className="person name-link" onClick={() => onUser(r.author_id, r.author!.display_name)}>
+                  {r.author.display_name}
+                </button>
+              ) : (
+                <strong>{r.author?.display_name ?? 'Utilisateur'}</strong>
+              )}
               <Stars value={r.rating} />
             </div>
             {r.comment && <p>{r.comment}</p>}
@@ -98,20 +106,53 @@ export function ReviewList({ userId }: { userId: string }) {
   );
 }
 
+// Fiche publique d'une personne : niveau, badges, avis. Le téléphone et le véhicule
+// n'y figurent jamais ; ils ne sont montrés que sur un trajet confirmé.
 export function UserSheet({ userId, name, onClose }: { userId: string; name: string; onClose: () => void }) {
+  const [current, setCurrent] = useState({ id: userId, name });
+  const [profile, setProfile] = useState<PublicProfile | null>(null);
+
+  useEffect(() => {
+    setProfile(null);
+    api.publicProfile(current.id).then(setProfile).catch(() => setProfile(null));
+  }, [current.id]);
+
+  const level = profile ? levelOf(profile.points).level : null;
   return (
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-head">
           <div className="contact">
-            <div className="avatar">{name.charAt(0).toUpperCase()}</div>
-            <h2>{name}</h2>
+            <div className="avatar big">{current.name.charAt(0).toUpperCase()}</div>
+            <div className="contact-info">
+              <h2>{current.name}</h2>
+              {level && (
+                <span className="level fit">
+                  {level.emoji} {level.name}
+                </span>
+              )}
+              {profile && (
+                <small>
+                  Membre depuis {new Date(profile.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+                </small>
+              )}
+            </div>
           </div>
           <button className="ghost small" onClick={onClose}>
             Fermer
           </button>
         </div>
-        <ReviewList userId={userId} />
+        {profile && profile.badges.length > 0 && (
+          <div className="chips badge-chips">
+            {profile.badges.map((b) => (
+              <span className="chip" key={b}>
+                🏅 {b}
+              </span>
+            ))}
+          </div>
+        )}
+        <h3 className="section">Avis reçus</h3>
+        <ReviewList userId={current.id} onUser={(id, n) => setCurrent({ id, name: n })} />
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import { PublishForm } from './PublishForm';
 import { euros, fmt, fmtTime } from './format';
 import { Rating, ReviewCard, UserSheet } from './Reviews';
 import { ConfirmDialog } from './ConfirmDialog';
+import { Assistance } from './Assistance';
 
 type Props = { mode: Mode; uid: string; refreshKey: number; notify: Notify; onChanged: () => void };
 
@@ -18,6 +19,7 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
   const [busy, setBusy] = useState(false);
   const [ask, setAsk] = useState<{ text: string; yes: string; run: () => void } | null>(null);
   const [viewUser, setViewUser] = useState<{ id: string; name: string } | null>(null);
+  const [helpFor, setHelpFor] = useState<Match | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -100,6 +102,7 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
             busy={busy}
             onAdvance={() => run(() => api.advance(m.id))}
             onUser={person(m)}
+            onHelp={() => setHelpFor(m)}
             onCancel={() =>
               setAsk({
                 text: `Annuler ton trajet avec ${m.other_name} ? ${m.other_name} sera prévenu.`,
@@ -195,7 +198,9 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
         const confirmed = mine.some((m) => m.status === 'accepted');
         const left = (l.seats ?? 0) - (l.seats_taken ?? 0);
         // Passager : une fois le trajet confirmé, on ne propose plus d'autres conducteurs.
-        const showFound = driver ? left > 0 : !confirmed;
+        // Conducteur : un trajet parti (ou complet) ne cherche plus de passagers.
+        const departed = driver && l.status === 'full' && left > 0;
+        const showFound = driver ? l.status === 'open' && left > 0 : !confirmed;
         const toAnswer = mine.filter((m) => m.status === 'proposed' && !m.proposed_by_me).length;
         return (
           <div className={toAnswer ? 'card folder highlight' : 'card folder'} key={l.id}>
@@ -206,7 +211,7 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
                 </strong>
                 <small>
                   {fmt(l.window_start)} – {fmtTime(l.window_end)}
-                  {driver && (left > 0 ? ` · ${left} place(s) libre(s)` : ' · complet')}
+                  {driver && (departed ? ' · en cours' : left > 0 ? ` · ${left} place(s) libre(s)` : ' · complet')}
                   {!driver && (l.seats ?? 1) > 1 && ` · ${l.seats} personnes`}
                 </small>
                 {!driver && l.note && <small className="note">« {l.note} »</small>}
@@ -287,10 +292,17 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
               {m.pickup_label} → {m.dropoff_label}
             </strong>
             <small>
-              Avec {m.other_name} · {fmt(m.meet_at)}
+              Avec{' '}
+              <button className="person name-link" onClick={person(m)}>
+                {m.other_name}
+              </button>{' '}
+              · {fmt(m.meet_at)}
             </small>
           </div>
           <span className="pts">+{driver ? 15 : 10}</span>
+          <button className="ghost small" aria-label="Assistance" onClick={() => setHelpFor(m)}>
+            🛟
+          </button>
         </div>
       ))}
 
@@ -305,6 +317,7 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
           onNo={() => setAsk(null)}
         />
       )}
+      {helpFor && <Assistance m={helpFor} notify={notify} onClose={() => setHelpFor(null)} />}
       {viewUser && <UserSheet userId={viewUser.id} name={viewUser.name} onClose={() => setViewUser(null)} />}
     </>
   );

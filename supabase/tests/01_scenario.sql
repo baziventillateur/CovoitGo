@@ -141,6 +141,19 @@ do $$ begin
 end $$;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
 select advance_match((select v from ids where k='match')) as conducteur_1;
+do $$ begin
+  if (select status from trips where id = (select v from ids where k='trip')) <> 'full' then
+    raise exception 'ECHEC : un trajet parti doit être fermé aux nouvelles demandes'; end if;
+  perform submit_claim((select v from ids where k='match'), 'retard', 'Le passager a 20 minutes de retard');
+  begin perform submit_claim((select v from ids where k='match'), 'retard', 'x'); raise exception 'ECHEC : réclamation vide';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; raise notice 'refusé : %', sqlerrm; end;
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+  if exists (select 1 from claims) then raise exception 'ECHEC : réclamation visible par l''autre personne'; end if;
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', false);
+  begin perform submit_claim((select v from ids where k='match'), 'autre', 'Je ne suis pas concerné'); raise exception 'ECHEC : réclamation par un tiers';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; raise notice 'refusé : %', sqlerrm; end;
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
+end $$;
 select advance_match((select v from ids where k='match')) as conducteur_2;
 select advance_match((select v from ids where k='match')) as conducteur_fin;
 
@@ -171,6 +184,11 @@ do $$ begin
   if (select other_phone from my_matches()) is not null then raise exception 'ECHEC : téléphone encore visible après le trajet'; end if;
   perform mark_notifications_read();
   if exists (select 1 from notifications where read_at is null) then raise exception 'ECHEC lecture notifications'; end if;
+  if (select status from trips where id = (select v from ids where k='trip')) <> 'done' then
+    raise exception 'ECHEC : un trajet terminé doit être clos'; end if;
+  -- Le trajet clos ne bloque pas une nouvelle publication ; un vrai doublon, si.
+  update ids set v = publish_trip('Argenteuil', 2.2470, 48.9472, 'Paris Saint-Lazare', 2.3256, 48.8763,
+                                  now() - interval '1 hour', now() + interval '3 hours', 2) where k = 'trip';
   begin
     perform publish_trip('Argenteuil', 2.2470, 48.9472, 'Paris Saint-Lazare', 2.3256, 48.8763, now(), now() + interval '1 hour', 2);
     raise exception 'ECHEC : doublon de trajet accepté';
@@ -195,10 +213,10 @@ select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b
 select respond_match((select v from ids where k='match2'), true);
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
 do $$ begin
-  if (select status || '/' || seats_taken from trips) <> 'full/2' then raise exception 'ECHEC trajet complet'; end if;
+  if (select status || '/' || seats_taken from trips where id = (select v from ids where k='trip')) <> 'open/1' then raise exception 'ECHEC trajet complet'; end if;
   perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
   perform cancel_request((select v from ids where k='reqB2'));
   perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
-  if (select status || '/' || seats_taken from trips) <> 'open/1' then raise exception 'ECHEC place non rendue'; end if;
+  if (select status || '/' || seats_taken from trips where id = (select v from ids where k='trip')) <> 'open/0' then raise exception 'ECHEC place non rendue'; end if;
 end $$;
 \echo 'TOUS LES TESTS PASSENT'

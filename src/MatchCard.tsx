@@ -6,10 +6,10 @@ import { Rating } from './Reviews';
 const STAGES = ['scheduled', 'driver_en_route', 'driver_arrived', 'on_board'] as const;
 const STEP_LABELS = ['Confirmé', 'En route', 'Au rendez-vous', 'Arrivée'];
 
-type Props = { m: Match; busy: boolean; onAdvance: () => void; onCancel: () => void; onUser: () => void };
+type Props = { m: Match; busy: boolean; onAdvance: () => void; onCancel: () => void; onUser: () => void; onHelp: () => void };
 
 // Carte d'un trajet accepté : étapes en direct, coordonnées, action suivante.
-export function MatchCard({ m, busy, onAdvance, onCancel, onUser }: Props) {
+export function MatchCard({ m, busy, onAdvance, onCancel, onUser, onHelp }: Props) {
   const driver = m.role === 'driver';
   const step = STAGES.indexOf(m.stage);
   const name = m.other_name;
@@ -113,11 +113,16 @@ export function MatchCard({ m, busy, onAdvance, onCancel, onUser }: Props) {
           {action}
         </button>
       )}
-      {(m.stage === 'scheduled' || m.stage === 'driver_en_route') && (
-        <button className="link center danger" disabled={busy} onClick={onCancel}>
-          Annuler ce trajet
+      <div className="card-foot">
+        <button className="ghost small" onClick={onHelp}>
+          🛟 Assistance
         </button>
-      )}
+        {(m.stage === 'scheduled' || m.stage === 'driver_en_route') && (
+          <button className="link danger" disabled={busy} onClick={onCancel}>
+            Annuler ce trajet
+          </button>
+        )}
+      </div>
     </div>
   );
 }
