@@ -3,6 +3,8 @@ import { api, type Candidate, type Listing, type Match, type Mode, type Notify }
 import { MatchCard } from './MatchCard';
 import { PublishForm } from './PublishForm';
 import { euros, fmt, fmtTime } from './format';
+import { Rating, ReviewCard, UserSheet } from './Reviews';
+import { ConfirmDialog } from './ConfirmDialog';
 
 type Props = { mode: Mode; uid: string; refreshKey: number; notify: Notify; onChanged: () => void };
 
@@ -14,6 +16,8 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
   const [loaded, setLoaded] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [ask, setAsk] = useState<{ text: string; yes: string; run: () => void } | null>(null);
+  const [viewUser, setViewUser] = useState<{ id: string; name: string } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -40,8 +44,7 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
     setBusy(true);
     try {
       const result = await action();
-      if (result === 'completed') notify(driver ? 'Trajet terminé : +15 points 🎉' : 'Trajet terminé : +10 points 🎉');
-      else if (success) notify(success);
+      if (success) notify(success);
       await load();
       onChanged();
     } catch (e) {
@@ -53,7 +56,8 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
   const toAnswer = matches.filter((m) => m.status === 'proposed' && !m.proposed_by_me);
   const live = matches.filter((m) => m.status === 'accepted');
   const waiting = matches.filter((m) => m.status === 'proposed' && m.proposed_by_me);
-  const done = matches.filter((m) => m.status === 'completed').slice(0, 3);
+  const toReview = matches.filter((m) => m.status === 'completed' && !m.reviewed_by_me);
+  const done = matches.filter((m) => m.status === 'completed' && m.reviewed_by_me).slice(0, 3);
   // Une paire trajet/demande déjà mise en relation ne peut plus être proposée.
   const paired = new Set(matches.map((m) => m.trip_id + m.request_id));
 
@@ -71,7 +75,7 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
     );
   }
 
-  const empty = loaded && !toAnswer.length && !live.length && !waiting.length && !listings.length;
+  const empty = loaded && !toAnswer.length && !live.length && !waiting.length && !listings.length && !toReview.length;
 
   return (
     <>
@@ -93,13 +97,25 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
         </div>
       )}
 
+      {toReview.map((m) => (
+        <ReviewCard
+          key={m.id}
+          name={m.other_name}
+          points={driver ? 15 : 10}
+          route={`${m.pickup_label} → ${m.dropoff_label}`}
+          busy={busy}
+          onSubmit={(rating, comment) => run(() => api.review(m.id, rating, comment), 'Merci pour ton avis !')}
+        />
+      ))}
+
       {toAnswer.length > 0 && <h3 className="section">À toi de répondre</h3>}
       {toAnswer.map((m) => (
         <div className="card highlight" key={m.id}>
           <div className="contact">
             <div className="avatar">{m.other_name.charAt(0).toUpperCase()}</div>
-            <div className="contact-info">
+            <button className="contact-info person" onClick={() => setViewUser({ id: m.other_id, name: m.other_name })}>
               <strong>{driver ? `${m.other_name} demande une place` : `${m.other_name} te propose une place`}</strong>
+              <Rating rating={m.other_rating} reviews={m.other_reviews} />
               <small>
                 {m.pickup_label} → {m.dropoff_label}
               </small>
@@ -107,7 +123,7 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
                 {fmt(m.meet_at)}
                 {m.cost_share_cents > 0 && ` · ${euros(m.cost_share_cents)}`}
               </small>
-            </div>
+            </button>
           </div>
           <div className="row2">
             <button className="primary" disabled={busy} onClick={() => run(() => api.respond(m.id, true), 'Trajet confirmé !')}>
@@ -127,9 +143,14 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
           m={m}
           busy={busy}
           onAdvance={() => run(() => api.advance(m.id))}
-          onCancel={() => {
-            if (window.confirm('Annuler ce trajet ?')) run(() => api.cancelMatch(m.id), 'Trajet annulé');
-          }}
+          onUser={() => setViewUser({ id: m.other_id, name: m.other_name })}
+          onCancel={() =>
+            setAsk({
+              text: `Annuler ton trajet avec ${m.other_name} ? ${m.other_name} sera prévenu.`,
+              yes: 'Oui, annuler',
+              run: () => run(() => api.cancelMatch(m.id), 'Trajet annulé'),
+            })
+          }
         />
       ))}
 
@@ -169,10 +190,13 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
               <button
                 className="ghost small"
                 disabled={busy}
-                onClick={() => {
-                  if (window.confirm(driver ? 'Supprimer ce trajet ?' : 'Supprimer cette recherche ?'))
-                    run(() => (driver ? api.cancelTrip(l.id) : api.cancelRequest(l.id)), 'Supprimé');
-                }}
+                onClick={() =>
+                  setAsk({
+                    text: driver ? 'Supprimer ce trajet publié ?' : 'Supprimer cette recherche ?',
+                    yes: 'Oui, supprimer',
+                    run: () => run(() => (driver ? api.cancelTrip(l.id) : api.cancelRequest(l.id)), 'Supprimé'),
+                  })
+                }
               >
                 Supprimer
               </button>
@@ -186,8 +210,9 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
                 {list.map((c) => (
                   <li key={c.trip_id + c.request_id}>
                     <div className="avatar">{c.name.charAt(0).toUpperCase()}</div>
-                    <div className="contact-info">
+                    <button className="contact-info person" onClick={() => setViewUser({ id: c.user_id, name: c.name })}>
                       <strong>{c.name}</strong>
+                      <Rating rating={c.rating} reviews={c.reviews} />
                       <small>
                         Départ possible {fmtTime(c.overlap_start)} · {c.shared_km} km ensemble
                       </small>
@@ -195,7 +220,7 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
                         {driver ? `Montée à ${c.pickup_m} m de ta route` : `${c.seats_left} place(s)`}
                         {!driver && (c.cost_share_cents ?? 0) > 0 && ` · ${euros(c.cost_share_cents!)}`}
                       </small>
-                    </div>
+                    </button>
                     <button
                       className="primary small"
                       disabled={busy}
@@ -226,6 +251,19 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
           <span className="pts">+{driver ? 15 : 10}</span>
         </div>
       ))}
+
+      {ask && (
+        <ConfirmDialog
+          text={ask.text}
+          yes={ask.yes}
+          onYes={() => {
+            ask.run();
+            setAsk(null);
+          }}
+          onNo={() => setAsk(null)}
+        />
+      )}
+      {viewUser && <UserSheet userId={viewUser.id} name={viewUser.name} onClose={() => setViewUser(null)} />}
     </>
   );
 }

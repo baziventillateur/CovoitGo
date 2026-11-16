@@ -9,6 +9,7 @@ au conducteur, points et badges. Pas de paiement dans le MVP.
   À coller dans le SQL Editor de Supabase. Ne pas exécuter `supabase/tests/` sur un vrai projet.
 - `supabase/tests/run.sh` : tests de la migration sur un Postgres 16 + PostGIS local jetable.
 - `supabase/migrations/0002_experience.sql` : notifications, étapes de trajet, téléphone privé, anti-doublons.
+- `supabase/migrations/0003_avis.sql` : avis (étoiles + commentaire), note moyenne, parcours mené par le conducteur seul.
 - `src/` : PWA React + TypeScript (Vite), en deux modes Conducteur / Passager :
   - `App.tsx` : session, choix du mode, cloche de notifications (temps réel + relève toutes les 20 s).
   - `Home.tsx` : accueil du mode (réponses à donner, trajets confirmés, annonces et personnes compatibles).
@@ -18,7 +19,7 @@ au conducteur, points et badges. Pas de paiement dans le MVP.
   - `geo.ts` : adresses et itinéraire via les services IGN (Géoplateforme).
 
 Parcours : proposer → accepter (trajet confirmé, coordonnées visibles) → le conducteur part → arrive →
-le passager confirme qu'il est à bord → le conducteur termine (points crédités).
+termine le trajet (points crédités) → chacun note l'autre (1 à 5 étoiles, commentaire facultatif).
 
 ## Lancer en local
 

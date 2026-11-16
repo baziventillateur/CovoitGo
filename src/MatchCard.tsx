@@ -1,13 +1,15 @@
 import type { Match } from './api';
 import { euros, fmt } from './format';
 
-const STAGES = ['scheduled', 'driver_en_route', 'driver_arrived', 'on_board'] as const;
-const STEP_LABELS = ['Confirmé', 'En route', 'Au rendez-vous', 'À bord'];
+import { Rating } from './Reviews';
 
-type Props = { m: Match; busy: boolean; onAdvance: () => void; onCancel: () => void };
+const STAGES = ['scheduled', 'driver_en_route', 'driver_arrived', 'on_board'] as const;
+const STEP_LABELS = ['Confirmé', 'En route', 'Au rendez-vous', 'Arrivée'];
+
+type Props = { m: Match; busy: boolean; onAdvance: () => void; onCancel: () => void; onUser: () => void };
 
 // Carte d'un trajet accepté : étapes en direct, coordonnées, action suivante.
-export function MatchCard({ m, busy, onAdvance, onCancel }: Props) {
+export function MatchCard({ m, busy, onAdvance, onCancel, onUser }: Props) {
   const driver = m.role === 'driver';
   const step = STAGES.indexOf(m.stage);
   const name = m.other_name;
@@ -21,16 +23,11 @@ export function MatchCard({ m, busy, onAdvance, onCancel }: Props) {
     emoji = '🚗';
     title = driver ? `Va chercher ${name}` : `${name} arrive !`;
     sub = driver ? m.pickup_label : 'Prépare-toi, ton chauffeur est en route';
-    action = driver ? 'Je suis arrivé' : 'Je suis à bord';
-  } else if (m.stage === 'driver_arrived') {
+    action = driver ? 'Je suis arrivé' : null;
+  } else if (m.stage === 'driver_arrived' || m.stage === 'on_board') {
     emoji = '📍';
-    title = driver ? `En attente de ${name}…` : `${name} t’attend`;
-    sub = driver ? 'Ton passager doit confirmer qu’il est monté' : 'Ton chauffeur est au point de rendez-vous';
-    action = driver ? null : 'Je suis à bord';
-  } else if (m.stage === 'on_board') {
-    emoji = '🛣️';
-    title = driver ? `${name} est à bord` : 'C’est parti !';
-    sub = `Direction ${m.dropoff_label}`;
+    title = driver ? `Tu es au rendez-vous` : `${name} t’attend`;
+    sub = driver ? `Dépose ${name} à ${m.dropoff_label}, puis termine le trajet` : 'Ton chauffeur est au point de rendez-vous. Bon trajet !';
     action = driver ? 'Trajet terminé' : null;
   }
 
@@ -55,10 +52,11 @@ export function MatchCard({ m, busy, onAdvance, onCancel }: Props) {
 
       <div className="contact">
         <div className="avatar">{name.charAt(0).toUpperCase()}</div>
-        <div className="contact-info">
+        <button className="contact-info person" onClick={onUser}>
           <strong>{name}</strong>
           <small>{driver ? 'Ton passager' : 'Ton chauffeur'}</small>
-        </div>
+          <Rating rating={m.other_rating} reviews={m.other_reviews} />
+        </button>
         {m.other_phone ? (
           <a className="call" href={`tel:${m.other_phone}`}>
             📞 {m.other_phone}
@@ -86,7 +84,7 @@ export function MatchCard({ m, busy, onAdvance, onCancel }: Props) {
           {action}
         </button>
       )}
-      {m.stage !== 'on_board' && (
+      {(m.stage === 'scheduled' || m.stage === 'driver_en_route') && (
         <button className="link center danger" disabled={busy} onClick={onCancel}>
           Annuler ce trajet
         </button>

@@ -11,7 +11,11 @@ export type Match = {
   status: 'proposed' | 'accepted' | 'declined' | 'cancelled' | 'completed';
   stage: 'scheduled' | 'driver_en_route' | 'driver_arrived' | 'on_board';
   proposed_by_me: boolean;
+  other_id: string;
   other_name: string;
+  other_rating: number | null;
+  other_reviews: number;
+  reviewed_by_me: boolean;
   other_phone: string | null;
   pickup_label: string;
   dropoff_label: string;
@@ -34,7 +38,10 @@ export type Listing = {
 export type Candidate = {
   trip_id: string;
   request_id: string;
+  user_id: string;
   name: string;
+  rating: number | null;
+  reviews: number;
   origin_label: string;
   dest_label: string;
   overlap_start: string;
@@ -44,8 +51,17 @@ export type Candidate = {
   cost_share_cents?: number;
 };
 
+export type Review = {
+  id: number;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  author: { display_name: string } | null;
+};
+
 export type Notification = {
   id: number;
+  match_id: string | null;
   role: Mode;
   kind: string;
   title: string;
@@ -71,13 +87,26 @@ export const api = {
   cancelRequest: (id: string) => rpc<void>('cancel_request', { p_request_id: id }),
   setPhone: (phone: string) => rpc<void>('set_phone', { p_phone: phone }),
   markRead: () => rpc<void>('mark_notifications_read'),
+  review: (matchId: string, rating: number, comment: string) =>
+    rpc<void>('submit_review', { p_match_id: matchId, p_rating: rating, p_comment: comment }),
+
+  async reviews(userId: string): Promise<Review[]> {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('id,rating,comment,created_at,author:profiles!reviews_author_id_fkey(display_name)')
+      .eq('target_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) throw new Error(error.message);
+    return (data ?? []) as unknown as Review[];
+  },
 
   async notifications(): Promise<Notification[]> {
     const { data, error } = await supabase
       .from('notifications')
-      .select('id,role,kind,title,body,read_at,created_at')
+      .select('id,match_id,role,kind,title,body,read_at,created_at')
       .order('created_at', { ascending: false })
-      .limit(30);
+      .limit(60);
     if (error) throw new Error(error.message);
     return (data ?? []) as Notification[];
   },

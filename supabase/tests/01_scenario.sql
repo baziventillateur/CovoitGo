@@ -111,25 +111,42 @@ do $$ begin
   if (select other_phone from my_matches()) <> '0612345678' then raise exception 'ECHEC : téléphone du passager attendu après acceptation'; end if;
 end $$;
 
-\echo '--- Étapes : le passager ne peut pas monter avant le départ, le conducteur ne peut pas sauter l''étape passager'
+\echo '--- Étapes : seul le conducteur fait avancer le trajet ; avis impossible avant la fin'
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
 do $$ begin
-  begin perform advance_match((select v from ids where k='match')); raise exception 'ECHEC : à bord avant le départ';
+  begin perform advance_match((select v from ids where k='match')); raise exception 'ECHEC : le passager fait avancer le trajet';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; raise notice 'refusé : %', sqlerrm; end;
+  begin perform submit_review((select v from ids where k='match'), 5, null); raise exception 'ECHEC : avis avant la fin';
   exception when others then if sqlerrm like 'ECHEC%' then raise; end if; raise notice 'refusé : %', sqlerrm; end;
 end $$;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
 select advance_match((select v from ids where k='match')) as conducteur_1;
 select advance_match((select v from ids where k='match')) as conducteur_2;
-do $$ begin
-  begin perform advance_match((select v from ids where k='match')); raise exception 'ECHEC : terminé sans le passager';
-  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; raise notice 'refusé : %', sqlerrm; end;
-end $$;
-select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
-select advance_match((select v from ids where k='match')) as passager;
-select title from notifications order by id;
-select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
 select advance_match((select v from ids where k='match')) as conducteur_fin;
+
+\echo '--- Avis : A note le conducteur, pas deux fois, pas par un tiers'
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+select submit_review((select v from ids where k='match'), 5, '  Super trajet, ponctuel  ');
+do $$ begin
+  begin perform submit_review((select v from ids where k='match'), 1, null); raise exception 'ECHEC : double avis';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; raise notice 'refusé : %', sqlerrm; end;
+  begin perform submit_review((select v from ids where k='match'), 9, null); raise exception 'ECHEC : note hors bornes';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; raise notice 'refusé : %', sqlerrm; end;
+  if not (select reviewed_by_me from my_matches()) then raise exception 'ECHEC reviewed_by_me'; end if;
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', false);
+  begin perform submit_review((select v from ids where k='match'), 1, 'intrus'); raise exception 'ECHEC : avis par un tiers';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; raise notice 'refusé : %', sqlerrm; end;
+  begin insert into reviews (match_id, author_id, target_id, rating) select v, auth.uid(), '00000000-0000-0000-0000-000000000001', 1 from ids where k='match';
+    raise exception 'ECHEC : écriture directe d''un avis';
+  exception when insufficient_privilege then raise notice 'écriture directe refusée'; end;
+end $$;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
+select submit_review((select v from ids where k='match'), 4, null);
 select role, title, body from notifications order by id;
+select rating, comment from reviews order by id;
+do $$ begin
+  if (select other_rating from my_matches()) <> 4.0 then raise exception 'ECHEC note moyenne'; end if;
+end $$;
 do $$ begin
   if (select other_phone from my_matches()) is not null then raise exception 'ECHEC : téléphone encore visible après le trajet'; end if;
   perform mark_notifications_read();

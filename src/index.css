@@ -159,3 +159,46 @@ small.error, .inline-msg { color: var(--danger); font-size: 0.9rem; }
   background: #0f172a; box-shadow: 0 8px 24px rgb(15 23 42 / 0.3); animation: up 0.2s ease-out;
 }
 .toast.err { background: var(--danger); }
+
+/* Fenêtre de confirmation */
+.sheet-backdrop.middle { align-items: center; justify-content: center; padding: 1.25rem; }
+.dialog { background: #fff; border-radius: 22px; padding: 1.5rem 1.25rem 1.25rem; width: 100%; max-width: 380px; display: grid; gap: 0.75rem; text-align: center; animation: up 0.2s ease-out; }
+.dialog p { font-size: 1.05rem; font-weight: 600; }
+.dialog-emoji { font-size: 2.5rem; }
+.danger-btn { background: var(--danger); color: #fff; font-weight: 600; }
+
+/* Avis */
+.person { padding: 0; border-radius: 8px; font-weight: 400; }
+.rating { color: var(--ink); }
+.star { color: #f59e0b; }
+.stars { display: flex; gap: 2px; color: #cbd5e1; font-size: 1rem; line-height: 1; }
+.stars .on { color: #f59e0b; }
+.stars.pick { justify-content: center; gap: 0.35rem; }
+.stars.pick button { font-size: 2.6rem; padding: 0; color: #cbd5e1; line-height: 1; }
+.stars.pick button.on { color: #f59e0b; transform: scale(1.08); }
+.celebrate { text-align: center; justify-items: center; border: 2px solid var(--brand); background: linear-gradient(180deg, var(--brand-soft), #fff 45%); }
+.celebrate-emoji { font-size: 3rem; animation: pop 0.6s ease-out; }
+@keyframes pop { 0% { transform: scale(0.3) rotate(-20deg); opacity: 0; } 70% { transform: scale(1.25) rotate(8deg); } 100% { transform: scale(1); } }
+.celebrate-title { font-size: 1.35rem; }
+.celebrate .ask { font-weight: 700; margin-top: 0.25rem; }
+textarea { font: inherit; width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 12px; resize: vertical; }
+textarea:focus { outline: 2px solid var(--brand); border-color: transparent; }
+.avg { display: flex; align-items: center; gap: 0.9rem; }
+.avg-num { font-size: 2.4rem; font-weight: 800; }
+.reviews { list-style: none; margin: 0; padding: 0; display: grid; }
+.reviews li { border-top: 1px solid var(--line); padding: 0.75rem 0; display: grid; gap: 0.25rem; }
+.review-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.new-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; margin-right: 6px; vertical-align: middle; }
+
+/* Notifications regroupées par trajet */
+.notifs { display: grid; gap: 0.6rem; }
+.notifs button { border: 1px solid var(--line); border-top: 1px solid var(--line); border-radius: 16px; padding: 0.85rem; }
+.notifs .unread button { border-color: var(--brand); }
+.notifs strong { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; font-size: 1.05rem; }
+.tag { background: var(--bg); color: var(--muted); font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.count.inline { position: static; }
+.trip-line { font-size: 0.9rem; font-weight: 600; color: var(--ink); }
+.events { display: grid; gap: 0.3rem; margin-top: 0.35rem; }
+.event { display: grid; grid-template-columns: auto 1fr auto; gap: 0.4rem; align-items: baseline; font-size: 0.85rem; color: var(--muted); }
+.event.fresh { color: var(--ink); font-weight: 600; }
+.event small { white-space: nowrap; }

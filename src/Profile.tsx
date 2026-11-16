@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
 import { api, type Notify } from './api';
+import { ReviewList } from './Reviews';
 
 const LEVELS = [
   { min: 0, name: 'Nouveau venu', emoji: '🌱' },
@@ -76,6 +77,11 @@ export function Profile({ uid, notify }: { uid: string; notify: Notify }) {
             <small>{b.description}</small>
           </div>
         ))}
+      </div>
+
+      <h3 className="section">Mes avis reçus</h3>
+      <div className="card">
+        <ReviewList userId={uid} />
       </div>
 
       <h3 className="section">Mon numéro</h3>
