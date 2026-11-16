@@ -8,6 +8,7 @@ const APP_URL = 'https://baziventillateur.github.io/CovoitGo/';
 const SELF_URL = `${Deno.env.get('SUPABASE_URL')}/functions/v1/send-email`;
 const FROM = 'CovoitGo <covoitgo@paceapp.fr>';
 const REPLY_TO = 'contact@paceapp.fr';
+const FOOTER_EMAIL = 'covoitgo@paceapp.fr';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const esc = (s: unknown) =>
@@ -45,7 +46,7 @@ function layout(o: { preview: string; title: string; intro: string; rows: [strin
 </td></tr>
 <tr><td style="padding:16px 24px;border-top:1px solid #e2e8f0;font-size:12px;line-height:1.6;color:#94a3b8;text-align:center">
 Tu reçois cet e-mail parce que tu as un compte CovoitGo et qu'un de tes trajets a évolué.<br>
-CovoitGo, un service PaceApp · <a href="mailto:${REPLY_TO}" style="color:#94a3b8">${REPLY_TO}</a><br>
+CovoitGo, un service PaceApp · <a href="mailto:${FOOTER_EMAIL}" style="color:#94a3b8">${FOOTER_EMAIL}</a><br>
 <a href="${o.unsub}" style="color:#94a3b8;text-decoration:underline">Ne plus recevoir ces e-mails</a>
 </td></tr></table></td></tr></table></body></html>`;
 }
