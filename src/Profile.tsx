@@ -15,17 +15,20 @@ export function Profile({ uid, notify }: { uid: string; notify: Notify }) {
   const [badges, setBadges] = useState<Badge[]>([]);
   const [earned, setEarned] = useState<Set<string>>(new Set());
   const [sounds, setSounds] = useState(soundsEnabled());
+  const [emails, setEmails] = useState(true);
   const [viewUser, setViewUser] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     (async () => {
-      const [p, pp, b, ub, v] = await Promise.all([
+      const [p, pp, b, ub, v, ep] = await Promise.all([
         supabase.from('profiles').select('display_name,points').eq('id', uid).single(),
         supabase.from('profile_private').select('phone').eq('user_id', uid).maybeSingle(),
         supabase.from('badges').select('code,label,description,trips_required').order('trips_required'),
         supabase.from('user_badges').select('badge_code').eq('user_id', uid),
         supabase.from('vehicles').select('model,color,plate').eq('user_id', uid).maybeSingle(),
+        supabase.from('email_prefs').select('enabled').eq('user_id', uid).maybeSingle(),
       ]);
+      setEmails(ep.data?.enabled ?? true);
       if (v.data) setCar({ model: v.data.model, color: v.data.color ?? '', plate: v.data.plate });
       if (p.data) {
         setName(p.data.display_name);
@@ -122,6 +125,26 @@ export function Profile({ uid, notify }: { uid: string; notify: Notify }) {
         <button className="primary" onClick={saveCar}>
           Enregistrer
         </button>
+      </div>
+
+      <h3 className="section">E-mails</h3>
+      <div className="card form">
+        <div className="card-foot">
+          <span>Trajet confirmé et récapitulatif de fin de trajet</span>
+          <button
+            className={emails ? 'chip on' : 'chip'}
+            onClick={async () => {
+              try {
+                await api.setEmailEnabled(!emails);
+                setEmails(!emails);
+              } catch (e) {
+                notify((e as Error).message, 'err');
+              }
+            }}
+          >
+            {emails ? 'Activés' : 'Coupés'}
+          </button>
+        </div>
       </div>
 
       <h3 className="section">Sons</h3>

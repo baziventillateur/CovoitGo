@@ -7,6 +7,9 @@ au conducteur, points et badges. Pas de paiement dans le MVP.
 
 - `supabase/migrations/0001_socle.sql` : base Supabase (Postgres + PostGIS), matching, RPC, RLS.
   À coller dans le SQL Editor de Supabase. Ne pas exécuter `supabase/tests/` sur un vrai projet.
+- `supabase/migrations/0006_assistance_trajet_en_cours.sql`, `0007_emails.sql` : assistance limitée aux trajets en cours ; e-mails (préférences, déclencheur).
+- `supabase/functions/send-email/` : fonction Edge qui envoie les e-mails via Resend (trajet confirmé, trajet terminé) et gère le désabonnement.
+- `supabase/templates/confirmation.html` : modèle de l'e-mail de confirmation d'inscription (à coller dans Supabase Auth).
 - `supabase/tests/run.sh` : tests de la migration sur un Postgres 16 + PostGIS local jetable.
 - `supabase/migrations/0002_experience.sql` : notifications, étapes de trajet, téléphone privé, anti-doublons.
 - `supabase/migrations/0003_avis.sql` : avis (étoiles + commentaire), note moyenne, parcours mené par le conducteur seul.
@@ -54,3 +57,10 @@ Build de production : `npm run build` (vérifie aussi les types), résultat dans
 2. Défis de groupe (entreprise, zone) et récompenses partenaires.
 3. Habitudes apprises à partir de l'historique des trajets.
 4. Déploiement de la PWA et test à deux comptes.
+
+## E-mails
+
+- Expéditeur : `CovoitGo <covoitgo@paceapp.fr>`, réponses vers `contact@paceapp.fr` (domaine vérifié dans Resend).
+- La fonction `send-email` a besoin du secret `RESEND_API_KEY` (Supabase → Edge Functions → Secrets).
+- L'adresse de la fonction est lue dans la table `app_settings`, clé `email_function_url` ; sans cette ligne, aucun e-mail ne part.
+- Chaque e-mail porte un lien de désabonnement et les en-têtes `List-Unsubscribe` (désabonnement en un clic).

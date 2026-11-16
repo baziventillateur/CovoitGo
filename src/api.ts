@@ -101,6 +101,7 @@ export const api = {
   setVehicle: (model: string, color: string, plate: string) =>
     rpc<void>('set_vehicle', { p_model: model, p_color: color, p_plate: plate }),
   markRead: () => rpc<void>('mark_notifications_read'),
+  setEmailEnabled: (on: boolean) => rpc<void>('set_email_enabled', { p_enabled: on }),
   claim: (matchId: string, category: string, message: string) =>
     rpc<void>('submit_claim', { p_match_id: matchId, p_category: category, p_message: message }),
   review: (matchId: string, rating: number, comment: string) =>

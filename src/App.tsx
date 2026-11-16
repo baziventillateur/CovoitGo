@@ -6,6 +6,7 @@ import { Auth } from './Auth';
 import { Home } from './Home';
 import { Profile } from './Profile';
 import { Notifications } from './Notifications';
+import { Unsubscribe } from './Unsubscribe';
 import { playSound, soundFor, unlockSounds } from './sounds';
 
 function savedMode(): Mode | null {
@@ -98,6 +99,8 @@ export default function App() {
     };
   }, [uid, loadNotifs]);
 
+  const unsubscribe = new URLSearchParams(window.location.search).get('unsubscribe');
+  if (unsubscribe) return <Unsubscribe token={unsubscribe} />;
   if (!ready) return <p className="muted center pad">Chargement…</p>;
   if (!session || !uid) return <Auth />;
 
