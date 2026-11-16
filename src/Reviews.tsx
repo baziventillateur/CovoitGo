@@ -109,7 +109,7 @@ export function ReviewList({ userId, onUser }: { userId: string; onUser?: (id: s
 // Fiche publique d'une personne : niveau, badges, avis. Le téléphone et le véhicule
 // n'y figurent jamais ; ils ne sont montrés que sur un trajet confirmé.
 export function UserSheet({ userId, name, onClose }: { userId: string; name: string; onClose: () => void }) {
-  const [current, setCurrent] = useState({ id: userId, name });
+  const current = { id: userId, name };
   const [profile, setProfile] = useState<PublicProfile | null>(null);
 
   useEffect(() => {
@@ -152,7 +152,8 @@ export function UserSheet({ userId, name, onClose }: { userId: string; name: str
           </div>
         )}
         <h3 className="section">Avis reçus</h3>
-        <ReviewList userId={current.id} onUser={(id, n) => setCurrent({ id, name: n })} />
+        {/* Un seul niveau : depuis une fiche, les auteurs des avis ne sont pas cliquables. */}
+        <ReviewList userId={current.id} />
       </div>
     </div>
   );

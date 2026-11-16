@@ -300,9 +300,6 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
             </small>
           </div>
           <span className="pts">+{driver ? 15 : 10}</span>
-          <button className="ghost small" aria-label="Assistance" onClick={() => setHelpFor(m)}>
-            🛟
-          </button>
         </div>
       ))}
 
