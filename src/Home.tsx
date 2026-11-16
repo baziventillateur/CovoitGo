@@ -122,7 +122,9 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
               <small>
                 {fmt(m.meet_at)}
                 {m.cost_share_cents > 0 && ` · ${euros(m.cost_share_cents)}`}
+                {driver && m.seats > 1 && ` · ${m.seats} personnes`}
               </small>
+              {driver && m.note && <small className="note">« {m.note} »</small>}
             </button>
           </div>
           <div className="row2">
@@ -185,7 +187,9 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
                 <small>
                   {fmt(l.window_start)} – {fmtTime(l.window_end)}
                   {driver && l.seats != null && ` · ${l.seats - (l.seats_taken ?? 0)} place(s) libre(s)`}
+                  {!driver && (l.seats ?? 1) > 1 && ` · ${l.seats} personnes`}
                 </small>
+                {!driver && l.note && <small className="note">« {l.note} »</small>}
               </div>
               <button
                 className="ghost small"
@@ -217,9 +221,12 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
                         Départ possible {fmtTime(c.overlap_start)} · {c.shared_km} km ensemble
                       </small>
                       <small>
-                        {driver ? `Montée à ${c.pickup_m} m de ta route` : `${c.seats_left} place(s)`}
+                        {driver
+                          ? `${(c.seats ?? 1) === 1 ? '1 personne' : `${c.seats} personnes`} · montée à ${c.pickup_m} m de ta route`
+                          : `${c.seats_left} place(s)`}
                         {!driver && (c.cost_share_cents ?? 0) > 0 && ` · ${euros(c.cost_share_cents!)}`}
                       </small>
+                      {driver && c.note && <small className="note">« {c.note} »</small>}
                     </button>
                     <button
                       className="primary small"

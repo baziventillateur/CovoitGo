@@ -105,12 +105,32 @@ do $$ begin
   if (select other_phone from my_matches()) is not null then raise exception 'ECHEC : téléphone visible avant acceptation'; end if;
   if exists (select 1 from profile_private where user_id <> auth.uid()) then raise exception 'ECHEC RLS téléphone'; end if;
 end $$;
+select set_vehicle('Peugeot 208', 'grise', 'ab-123-cd');
+-- Un groupe de 3 ne rentre pas dans un trajet à 2 places
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000d', false);
+insert into ids select 'reqD3', publish_request('Asnières', 2.2855, 48.9105, 'Saint-Lazare', 2.3240, 48.8770,
+                                                now(), now() + interval '2 hours', 3, 'Deux valises');
+do $$ begin
+  if (select count(*) from find_trips_for_request((select v from ids where k='reqD3'))) <> 0 then
+    raise exception 'ECHEC : groupe de 3 proposé sur un trajet à 2 places'; end if;
+  perform cancel_request((select v from ids where k='reqD3'));
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+  if (select vehicle_plate from my_matches()) is not null then raise exception 'ECHEC : plaque visible avant acceptation'; end if;
+  if exists (select 1 from vehicles) then raise exception 'ECHEC RLS véhicule'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
+select passenger_name, seats, note from find_requests_for_trip((select v from ids where k='trip'));
 select respond_match((select v from ids where k='match'), true) as reponse_conducteur;
 select role, other_name, other_phone, stage from my_matches();
 do $$ begin
   if (select other_phone from my_matches()) <> '0612345678' then raise exception 'ECHEC : téléphone du passager attendu après acceptation'; end if;
 end $$;
 
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+select role, vehicle_model, vehicle_color, vehicle_plate from my_matches();
+do $$ begin
+  if (select vehicle_plate from my_matches()) <> 'AB-123-CD' then raise exception 'ECHEC : plaque attendue après acceptation'; end if;
+end $$;
 \echo '--- Étapes : seul le conducteur fait avancer le trajet ; avis impossible avant la fin'
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
 do $$ begin

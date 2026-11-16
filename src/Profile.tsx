@@ -17,17 +17,20 @@ export function Profile({ uid, notify }: { uid: string; notify: Notify }) {
   const [name, setName] = useState('');
   const [points, setPoints] = useState(0);
   const [phone, setPhone] = useState('');
+  const [car, setCar] = useState({ model: '', color: '', plate: '' });
   const [badges, setBadges] = useState<Badge[]>([]);
   const [earned, setEarned] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     (async () => {
-      const [p, pp, b, ub] = await Promise.all([
+      const [p, pp, b, ub, v] = await Promise.all([
         supabase.from('profiles').select('display_name,points').eq('id', uid).single(),
         supabase.from('profile_private').select('phone').eq('user_id', uid).maybeSingle(),
         supabase.from('badges').select('code,label,description,trips_required').order('trips_required'),
         supabase.from('user_badges').select('badge_code').eq('user_id', uid),
+        supabase.from('vehicles').select('model,color,plate').eq('user_id', uid).maybeSingle(),
       ]);
+      if (v.data) setCar({ model: v.data.model, color: v.data.color ?? '', plate: v.data.plate });
       if (p.data) {
         setName(p.data.display_name);
         setPoints(p.data.points);
@@ -47,6 +50,15 @@ export function Profile({ uid, notify }: { uid: string; notify: Notify }) {
     try {
       await api.setPhone(phone);
       notify('Numéro enregistré');
+    } catch (e) {
+      notify((e as Error).message, 'err');
+    }
+  }
+
+  async function saveCar() {
+    try {
+      await api.setVehicle(car.model, car.color, car.plate);
+      notify('Véhicule enregistré');
     } catch (e) {
       notify((e as Error).message, 'err');
     }
@@ -92,6 +104,28 @@ export function Profile({ uid, notify }: { uid: string; notify: Notify }) {
           <small>Visible uniquement par la personne avec qui ton trajet est confirmé, le temps du trajet.</small>
         </label>
         <button className="primary" onClick={savePhone}>
+          Enregistrer
+        </button>
+      </div>
+
+      <h3 className="section">Mon véhicule (si je conduis)</h3>
+      <div className="card form">
+        <label>
+          Marque et modèle
+          <input placeholder="Peugeot 208" maxLength={40} value={car.model} onChange={(e) => setCar({ ...car, model: e.target.value })} />
+        </label>
+        <div className="row2">
+          <label>
+            Couleur
+            <input placeholder="Grise" maxLength={20} value={car.color} onChange={(e) => setCar({ ...car, color: e.target.value })} />
+          </label>
+          <label>
+            Plaque
+            <input placeholder="AB-123-CD" maxLength={12} value={car.plate} onChange={(e) => setCar({ ...car, plate: e.target.value.toUpperCase() })} />
+          </label>
+        </div>
+        <small>Montré à ton passager une fois le trajet confirmé, pour qu’il reconnaisse ta voiture.</small>
+        <button className="primary" onClick={saveCar}>
           Enregistrer
         </button>
       </div>

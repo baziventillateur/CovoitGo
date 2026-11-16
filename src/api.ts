@@ -23,6 +23,11 @@ export type Match = {
   trip_dest_label: string;
   meet_at: string;
   cost_share_cents: number;
+  seats: number;
+  note: string | null;
+  vehicle_model: string | null;
+  vehicle_color: string | null;
+  vehicle_plate: string | null;
 };
 
 export type Listing = {
@@ -33,6 +38,7 @@ export type Listing = {
   window_end: string;
   seats?: number;
   seats_taken?: number;
+  note?: string | null;
 };
 
 export type Candidate = {
@@ -49,6 +55,8 @@ export type Candidate = {
   shared_km: number;
   seats_left?: number;
   cost_share_cents?: number;
+  seats?: number;
+  note?: string | null;
 };
 
 export type Review = {
@@ -86,6 +94,8 @@ export const api = {
   cancelTrip: (id: string) => rpc<void>('cancel_trip', { p_trip_id: id }),
   cancelRequest: (id: string) => rpc<void>('cancel_request', { p_request_id: id }),
   setPhone: (phone: string) => rpc<void>('set_phone', { p_phone: phone }),
+  setVehicle: (model: string, color: string, plate: string) =>
+    rpc<void>('set_vehicle', { p_model: model, p_color: color, p_plate: plate }),
   markRead: () => rpc<void>('mark_notifications_read'),
   review: (matchId: string, rating: number, comment: string) =>
     rpc<void>('submit_review', { p_match_id: matchId, p_rating: rating, p_comment: comment }),
@@ -123,7 +133,7 @@ export const api = {
             .in('status', ['open', 'full'])
         : supabase
             .from('requests')
-            .select('id,origin_label,dest_label,window_start,window_end')
+            .select('id,origin_label,dest_label,window_start,window_end,seats,note')
             .eq('passenger_id', uid)
             .eq('status', 'open');
     const { data, error } = await q.gt('window_end', now).order('window_start');

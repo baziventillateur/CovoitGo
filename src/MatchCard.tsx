@@ -66,11 +66,40 @@ export function MatchCard({ m, busy, onAdvance, onCancel, onUser }: Props) {
         )}
       </div>
 
+      {!driver && (
+        <div className="vehicle">
+          <span>🚘</span>
+          {m.vehicle_plate ? (
+            <div>
+              <strong>
+                {m.vehicle_model}
+                {m.vehicle_color && ` · ${m.vehicle_color}`}
+              </strong>
+              <span className="plate">{m.vehicle_plate}</span>
+            </div>
+          ) : (
+            <small>Véhicule non renseigné par {name}</small>
+          )}
+        </div>
+      )}
+
       <dl className="route">
         <dt>Montée</dt>
         <dd>{m.pickup_label}</dd>
         <dt>Descente</dt>
         <dd>{m.dropoff_label}</dd>
+        {driver && (
+          <>
+            <dt>Passagers</dt>
+            <dd>{m.seats === 1 ? '1 personne' : `${m.seats} personnes`}</dd>
+          </>
+        )}
+        {driver && m.note && (
+          <>
+            <dt>Message</dt>
+            <dd>{m.note}</dd>
+          </>
+        )}
         {m.cost_share_cents > 0 && (
           <>
             <dt>Participation</dt>

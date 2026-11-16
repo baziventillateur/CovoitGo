@@ -22,6 +22,8 @@ export function PublishForm({ mode, notify, onDone, onCancel }: Props) {
   const [flex, setFlex] = useState(120);
   const [seats, setSeats] = useState(3);
   const [share, setShare] = useState('');
+  const [people, setPeople] = useState(1);
+  const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
 
   async function submit(e: FormEvent) {
@@ -47,7 +49,7 @@ export function PublishForm({ mode, notify, onDone, onCancel }: Props) {
           p_cost_share_cents: Math.round((parseFloat(share.replace(',', '.')) || 0) * 100),
           p_route_geojson: await routeGeoJSON(from, to),
         })
-      : await supabase.rpc('publish_request', common);
+      : await supabase.rpc('publish_request', { ...common, p_seats: people, p_note: note });
     setBusy(false);
     if (error) return notify(error.message, 'err');
     notify(driver ? 'Trajet publié !' : 'Recherche lancée !');
@@ -91,6 +93,24 @@ export function PublishForm({ mode, notify, onDone, onCancel }: Props) {
             <input inputMode="decimal" placeholder="0" value={share} onChange={(e) => setShare(e.target.value.replace(/[^0-9.,]/g, ''))} />
           </label>
         </div>
+      )}
+      {!driver && (
+        <>
+          <div className="field">
+            <span>Combien de personnes ?</span>
+            <div className="chips">
+              {[1, 2, 3].map((n) => (
+                <button type="button" key={n} className={people === n ? 'chip on' : 'chip'} onClick={() => setPeople(n)}>
+                  {n === 1 ? 'Moi seul' : `${n} personnes`}
+                </button>
+              ))}
+            </div>
+          </div>
+          <label>
+            Un mot pour le chauffeur (facultatif)
+            <textarea rows={2} maxLength={200} placeholder="Bagages, trottinette, siège enfant…" value={note} onChange={(e) => setNote(e.target.value)} />
+          </label>
+        </>
       )}
       <button className="primary big" disabled={busy}>
         {busy ? 'Un instant…' : driver ? 'Publier' : 'Chercher'}
