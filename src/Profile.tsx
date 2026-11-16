@@ -3,6 +3,7 @@ import { supabase } from './supabase';
 import { api, type Notify } from './api';
 import { ReviewList, UserSheet } from './Reviews';
 import { levelOf } from './levels';
+import { playSound, setSoundsEnabled, soundsEnabled, unlockSounds } from './sounds';
 
 type Badge = { code: string; label: string; description: string; trips_required: number };
 
@@ -13,6 +14,7 @@ export function Profile({ uid, notify }: { uid: string; notify: Notify }) {
   const [car, setCar] = useState({ model: '', color: '', plate: '' });
   const [badges, setBadges] = useState<Badge[]>([]);
   const [earned, setEarned] = useState<Set<string>>(new Set());
+  const [sounds, setSounds] = useState(soundsEnabled());
   const [viewUser, setViewUser] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
@@ -120,6 +122,43 @@ export function Profile({ uid, notify }: { uid: string; notify: Notify }) {
         <button className="primary" onClick={saveCar}>
           Enregistrer
         </button>
+      </div>
+
+      <h3 className="section">Sons</h3>
+      <div className="card form">
+        <div className="card-foot">
+          <span>Sons des notifications</span>
+          <button
+            className={sounds ? 'chip on' : 'chip'}
+            onClick={() => {
+              setSoundsEnabled(!sounds);
+              setSounds(!sounds);
+            }}
+          >
+            {sounds ? 'Activés' : 'Coupés'}
+          </button>
+        </div>
+        <div className="chips">
+          {(
+            [
+              ['proposal', 'Demande reçue'],
+              ['accepted', 'Trajet confirmé'],
+              ['arrived', 'Chauffeur arrivé'],
+            ] as const
+          ).map(([snd, label]) => (
+            <button
+              key={snd}
+              className="chip"
+              onClick={() => {
+                unlockSounds();
+                playSound(snd);
+              }}
+            >
+              ▶ {label}
+            </button>
+          ))}
+        </div>
+        <small>Le son ne se joue que lorsque l’appli est ouverte.</small>
       </div>
 
       <button className="ghost big" onClick={() => supabase.auth.signOut()}>

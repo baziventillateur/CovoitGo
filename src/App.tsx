@@ -6,6 +6,7 @@ import { Auth } from './Auth';
 import { Home } from './Home';
 import { Profile } from './Profile';
 import { Notifications } from './Notifications';
+import { playSound, soundFor, unlockSounds } from './sounds';
 
 function savedMode(): Mode | null {
   try {
@@ -48,7 +49,11 @@ export default function App() {
       setReady(true);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
-    return () => sub.subscription.unsubscribe();
+    window.addEventListener('pointerdown', unlockSounds);
+    return () => {
+      sub.subscription.unsubscribe();
+      window.removeEventListener('pointerdown', unlockSounds);
+    };
   }, []);
 
   const loadNotifs = useCallback(async () => {
@@ -58,7 +63,15 @@ export default function App() {
       const newest = list[0]?.id ?? 0;
       // Une nouvelle notification signifie que quelque chose a bougé : on rafraîchit l'accueil.
       if (newest > lastNotifId.current) {
-        if (lastNotifId.current > 0 && !list[0].read_at) notify(list[0].title);
+        if (lastNotifId.current > 0 && !list[0].read_at) {
+          notify(list[0].title);
+          // Un seul son par relève, pour la plus importante des nouvelles notifications.
+          const fresh = list.filter((n) => n.id > lastNotifId.current && !n.read_at);
+          const pick = (['accepted', 'arrived', 'proposal'] as const).find((snd) =>
+            fresh.some((n) => soundFor(n.kind, n.title) === snd),
+          );
+          if (pick) playSound(pick);
+        }
         lastNotifId.current = newest;
         setRefreshKey((k) => k + 1);
       }
