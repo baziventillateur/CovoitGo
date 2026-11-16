@@ -20,7 +20,7 @@ insert into ids select 'trip', publish_trip('Argenteuil', 2.2470, 48.9472, 'Pari
 -- A : Asnières -> Saint-Lazare, plus tard mais dans la fenêtre  => DOIT matcher
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
 insert into ids select 'reqA', publish_request('Asnières', 2.2855, 48.9105, 'Saint-Lazare', 2.3240, 48.8770,
-                                               now() + interval '2 hours', now() + interval '150 minutes');
+                                               now(), now() + interval '150 minutes');
 -- B : sens inverse => ne doit PAS matcher
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
 insert into ids select 'reqB', publish_request('Saint-Lazare', 2.3240, 48.8770, 'Asnières', 2.2855, 48.9105,
@@ -92,11 +92,53 @@ do $$ begin
   end;
 end $$;
 
-select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
-select respond_match((select v from ids where k='match'), true) as reponse_conducteur;
-select confirm_match((select v from ids where k='match')) as apres_conducteur;
+-- Téléphones : A le fournit, le conducteur aussi
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
-select confirm_match((select v from ids where k='match')) as apres_passager;
+select set_phone('06 12 34 56 78');
+do $$ begin
+  if (select other_phone from my_matches()) is not null then raise exception 'ECHEC : téléphone visible avant acceptation'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
+select set_phone('+33 7 00 00 00 01');
+do $$ begin
+  if (select count(*) from notifications) <> 1 then raise exception 'ECHEC : le conducteur doit avoir 1 notification (demande)'; end if;
+  if (select other_phone from my_matches()) is not null then raise exception 'ECHEC : téléphone visible avant acceptation'; end if;
+  if exists (select 1 from profile_private where user_id <> auth.uid()) then raise exception 'ECHEC RLS téléphone'; end if;
+end $$;
+select respond_match((select v from ids where k='match'), true) as reponse_conducteur;
+select role, other_name, other_phone, stage from my_matches();
+do $$ begin
+  if (select other_phone from my_matches()) <> '0612345678' then raise exception 'ECHEC : téléphone du passager attendu après acceptation'; end if;
+end $$;
+
+\echo '--- Étapes : le passager ne peut pas monter avant le départ, le conducteur ne peut pas sauter l''étape passager'
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+do $$ begin
+  begin perform advance_match((select v from ids where k='match')); raise exception 'ECHEC : à bord avant le départ';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; raise notice 'refusé : %', sqlerrm; end;
+end $$;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
+select advance_match((select v from ids where k='match')) as conducteur_1;
+select advance_match((select v from ids where k='match')) as conducteur_2;
+do $$ begin
+  begin perform advance_match((select v from ids where k='match')); raise exception 'ECHEC : terminé sans le passager';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; raise notice 'refusé : %', sqlerrm; end;
+end $$;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+select advance_match((select v from ids where k='match')) as passager;
+select title from notifications order by id;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
+select advance_match((select v from ids where k='match')) as conducteur_fin;
+select role, title, body from notifications order by id;
+do $$ begin
+  if (select other_phone from my_matches()) is not null then raise exception 'ECHEC : téléphone encore visible après le trajet'; end if;
+  perform mark_notifications_read();
+  if exists (select 1 from notifications where read_at is null) then raise exception 'ECHEC lecture notifications'; end if;
+  begin
+    perform publish_trip('Argenteuil', 2.2470, 48.9472, 'Paris Saint-Lazare', 2.3256, 48.8763, now(), now() + interval '1 hour', 2);
+    raise exception 'ECHEC : doublon de trajet accepté';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; raise notice 'doublon refusé : %', sqlerrm; end;
+end $$;
 
 \echo '--- Résultat : points et badges'
 select display_name, points from profiles where points > 0 order by points desc;

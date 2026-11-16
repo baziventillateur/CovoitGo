@@ -11,5 +11,5 @@ trap '"$PGBIN/pg_ctl" -D "$DATA" -m immediate stop >/dev/null 2>&1 || true; rm -
 P=("$PGBIN/psql" -h "$DATA" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -q)
 "${P[@]}" -c "create database covoit_test"
 "${P[@]}" -d covoit_test -f "$ROOT/supabase/tests/00_stub_supabase.sql"
-"${P[@]}" -d covoit_test -f "$ROOT/supabase/migrations/0001_socle.sql"
+for f in "$ROOT"/supabase/migrations/*.sql; do "${P[@]}" -d covoit_test -f "$f"; done
 "${P[@]}" -d covoit_test -f "$ROOT/supabase/tests/01_scenario.sql"

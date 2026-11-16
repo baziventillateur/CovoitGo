@@ -8,12 +8,17 @@ au conducteur, points et badges. Pas de paiement dans le MVP.
 - `supabase/migrations/0001_socle.sql` : base Supabase (Postgres + PostGIS), matching, RPC, RLS.
   À coller dans le SQL Editor de Supabase. Ne pas exécuter `supabase/tests/` sur un vrai projet.
 - `supabase/tests/run.sh` : tests de la migration sur un Postgres 16 + PostGIS local jetable.
-- `src/` : PWA React + TypeScript (Vite) :
-  - `Auth.tsx` : inscription et connexion (le pseudo part dans les métadonnées, le profil est créé par trigger).
-  - `Trips.tsx` : « Je conduis » (publier un trajet, proposer aux passagers compatibles) et « Je cherche » (publier une demande, demander une place).
-  - `Matches.tsx` : mises en relation, acceptation, confirmation des deux côtés, annulation.
-  - `Profile.tsx` : points et badges.
+- `supabase/migrations/0002_experience.sql` : notifications, étapes de trajet, téléphone privé, anti-doublons.
+- `src/` : PWA React + TypeScript (Vite), en deux modes Conducteur / Passager :
+  - `App.tsx` : session, choix du mode, cloche de notifications (temps réel + relève toutes les 20 s).
+  - `Home.tsx` : accueil du mode (réponses à donner, trajets confirmés, annonces et personnes compatibles).
+  - `MatchCard.tsx` : trajet confirmé avec étapes en direct et coordonnées de l'autre personne.
+  - `PublishForm.tsx` : publier un trajet ou une recherche (heure + marge de flexibilité).
+  - `Profile.tsx` : niveau, points, badges, téléphone.
   - `geo.ts` : adresses et itinéraire via les services IGN (Géoplateforme).
+
+Parcours : proposer → accepter (trajet confirmé, coordonnées visibles) → le conducteur part → arrive →
+le passager confirme qu'il est à bord → le conducteur termine (points crédités).
 
 ## Lancer en local
 
@@ -27,8 +32,8 @@ Build de production : `npm run build` (vérifie aussi les types), résultat dans
 
 ## Ce qui n'est pas encore testé
 
-- Les appels réels aux services IGN (adresse et itinéraire) : à valider depuis un navigateur.
-- Le parcours complet à deux comptes dans l'appli (le SQL, lui, est testé).
+- L'interface v2 (deux modes, cloche, étapes) : compilée, à valider sur téléphone à deux comptes.
+- L'appel à l'itinéraire IGN : en cas d'échec, le tracé retombe sur la ligne droite.
 
 ## Briques retenues
 
