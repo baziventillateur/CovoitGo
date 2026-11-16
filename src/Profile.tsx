@@ -4,6 +4,7 @@ import { api, type Notify } from './api';
 import { ReviewList, UserSheet } from './Reviews';
 import { levelOf } from './levels';
 import { Account } from './Account';
+import { SUPPORT_URL } from './Assistance';
 import { playSound, setSoundsEnabled, soundsEnabled, unlockSounds } from './sounds';
 
 type Badge = { code: string; label: string; description: string; trips_required: number };
@@ -187,6 +188,16 @@ export function Profile({ uid, notify }: { uid: string; notify: Notify }) {
         </div>
         <small>Le son ne se joue que lorsque l’appli est ouverte.</small>
       </div>
+
+      <h3 className="section">Besoin d’aide ?</h3>
+      <a className="card support-card" href={SUPPORT_URL} target="_blank" rel="noopener">
+        <span>💬</span>
+        <span className="contact-info">
+          <strong>Support CovoitGo</strong>
+          <small>Discute en direct avec un conseiller</small>
+        </span>
+        <span>›</span>
+      </a>
 
       <button className="ghost big" onClick={() => supabase.auth.signOut()}>
         Se déconnecter

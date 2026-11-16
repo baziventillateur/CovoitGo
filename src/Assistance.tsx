@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { api, type Match, type Notify } from './api';
 
-// Lien d'assistance externe (page d'aide, numéro, formulaire) : à renseigner quand il sera défini.
-const SUPPORT_URL: string | null = null;
+// Page du support : c'est la seule où le chat en direct est chargé.
+export const SUPPORT_URL = import.meta.env.BASE_URL + 'support.html';
 
 const REASONS = [
   { code: 'retard', label: 'Retard' },
@@ -44,13 +44,11 @@ export function Assistance({ m, notify, onClose }: Props) {
           Trajet {m.pickup_label} → {m.dropoff_label} avec {m.other_name}
         </small>
         <p className="urgent">En cas de danger immédiat, appelle le 112.</p>
-        {SUPPORT_URL && (
-          <a className="ghost big link-btn" href={SUPPORT_URL} target="_blank" rel="noreferrer">
-            Contacter l’assistance
-          </a>
-        )}
+        <a className="primary big link-btn" href={SUPPORT_URL} target="_blank" rel="noopener">
+          💬 Discuter en direct avec le support
+        </a>
         <div className="field">
-          <span>Faire une réclamation : quel est le problème ?</span>
+          <span>Ou laisser une réclamation écrite : quel est le problème ?</span>
           <div className="chips">
             {REASONS.map((r) => (
               <button type="button" key={r.code} className={reason === r.code ? 'chip on' : 'chip'} onClick={() => setReason(r.code)}>
@@ -61,7 +59,7 @@ export function Assistance({ m, notify, onClose }: Props) {
         </div>
         <textarea rows={3} maxLength={1000} placeholder="Explique ce qui s’est passé" value={message} onChange={(e) => setMessage(e.target.value)} />
         <small>Ta réclamation n’est pas visible par {m.other_name}.</small>
-        <button className="primary big" disabled={busy || !reason || message.trim().length < 5} onClick={send}>
+        <button className="ghost big" disabled={busy || !reason || message.trim().length < 5} onClick={send}>
           Envoyer la réclamation
         </button>
       </div>

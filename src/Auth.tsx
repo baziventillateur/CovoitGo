@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { supabase } from './supabase';
+import { SUPPORT_URL } from './Assistance';
 
 type Step = 'in' | 'up' | 'forgot' | 'code';
 
@@ -146,6 +147,9 @@ export function Auth() {
           Retour à la connexion
         </button>
       )}
+      <a className="link" href={SUPPORT_URL} target="_blank" rel="noopener">
+        Un souci pour te connecter ? Contacter le support
+      </a>
     </div>
   );
 }

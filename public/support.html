@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f766e" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <title>Support CovoitGo</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100dvh; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        font-size: 15px; color: #0f172a; background: linear-gradient(180deg, #0f766e 0, #0f766e 150px, #f1f5f9 150px);
+      }
+      header { color: #fff; padding: 18px 16px 0; max-width: 520px; margin: 0 auto; }
+      header .brand { font-weight: 800; font-size: 1.05rem; opacity: 0.9; }
+      header h1 { margin: 10px 0 0; font-size: 1.5rem; }
+      main { max-width: 520px; margin: 0 auto; padding: 14px 12px 120px; display: grid; gap: 10px; }
+      .card { background: #fff; border-radius: 14px; padding: 14px; box-shadow: 0 1px 3px rgb(15 23 42 / 0.1); }
+      .lead { font-size: 1rem; line-height: 1.45; margin: 0; }
+      ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+      li { display: flex; gap: 10px; align-items: center; }
+      .num {
+        flex: none; width: 28px; height: 28px; border-radius: 50%; background: #ccfbf1; color: #115e59;
+        display: grid; place-items: center; font-weight: 800; font-size: 0.9rem;
+      }
+      small { color: #64748b; display: block; line-height: 1.4; }
+      .urgent { background: #fef2f2; color: #b91c1c; font-weight: 700; font-size: 0.9rem; }
+      .hint {
+        position: fixed; right: 16px; bottom: 96px; background: #0f172a; color: #fff; font-weight: 700;
+        padding: 8px 12px; border-radius: 12px; font-size: 0.9rem; animation: bob 1.4s ease-in-out infinite;
+      }
+      .hint::after {
+        content: ''; position: absolute; right: 22px; bottom: -7px; border: 8px solid transparent;
+        border-top-color: #0f172a; border-bottom: 0;
+      }
+      @keyframes bob { 50% { transform: translateY(6px); } }
+      a { color: #0f766e; font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">CovoitGo</div>
+      <h1>Support</h1>
+    </header>
+    <main>
+      <div class="card">
+        <p class="lead"><strong>Un problème, une question ?</strong><br />Discute en direct avec une personne du support CovoitGo.</p>
+      </div>
+      <div class="card">
+        <ol>
+          <li><span class="num">1</span><span>Touche la <strong>bulle</strong> en bas à droite de l’écran.</span></li>
+          <li><span class="num">2</span><span>Écris ton message, en précisant le trajet concerné.</span></li>
+          <li><span class="num">3</span><span>Un conseiller te répond dans la conversation.</span></li>
+        </ol>
+      </div>
+      <div class="card urgent">En cas de danger immédiat, appelle le 112.</div>
+      <div class="card">
+        <small>La bulle met quelques secondes à apparaître. Si elle ne s’affiche pas, recharge la page ou écris à <a href="mailto:covoitgo@paceapp.fr">covoitgo@paceapp.fr</a>.</small>
+        <small style="margin-top: 8px">La discussion en direct est fournie par Tidio et ne se charge que sur cette page.</small>
+      </div>
+      <a href="./">Revenir à CovoitGo</a>
+    </main>
+    <div class="hint">La bulle est ici</div>
+    <!-- Chat du support : chargé uniquement sur cette page, jamais dans le reste de l'appli. -->
+    <script src="https://code.tidio.co/jub5k7agyx478c0qfw044g3bepaackg7.js" async></script>
+  </body>
+</html>

@@ -340,3 +340,9 @@ p.block { margin: 0; }
 
 /* Saisie d'un code reçu par e-mail */
 .code-input { font-size: 1.5rem; letter-spacing: 0.3em; text-align: center; font-weight: 700; }
+
+/* Accès au support */
+.support-card { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; color: inherit; }
+.support-card > span:first-child { font-size: 1.4rem; }
+.support-card > span:last-child { font-size: 1.3rem; color: var(--muted); }
+a.link { display: block; text-align: center; font-size: 0.85rem; }

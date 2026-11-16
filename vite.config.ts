@@ -14,6 +14,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],
+      // La page du support est une vraie page à part : le service worker ne doit pas la remplacer par l'appli.
+      workbox: { navigateFallbackDenylist: [/support\.html/] },
       manifest: {
         name: 'CovoitGo',
         short_name: 'CovoitGo',
