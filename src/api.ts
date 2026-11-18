@@ -46,6 +46,17 @@ export type Listing = {
   cost_share_cents?: number;
   duration_min?: number | null;
   traffic_delay_min?: number | null;
+  traffic_checked_at?: string | null;
+};
+
+export type EditTrip = {
+  id: string;
+  from: { label: string; lng: number; lat: number };
+  to: { label: string; lng: number; lat: number };
+  start: string;
+  flex: number;
+  seats: number;
+  price: number;
 };
 
 export type Candidate = {
@@ -149,6 +160,22 @@ export const api = {
   },
   cancelMatch: (id: string) => rpc<void>('cancel_match', { p_match_id: id }),
   cancelTrip: (id: string) => rpc<void>('cancel_trip', { p_trip_id: id }),
+  pauseTrip: (id: string) => rpc<void>('pause_trip', { p_trip_id: id }),
+  resumeTrip: (id: string) => rpc<void>('resume_trip', { p_trip_id: id }),
+  async tripForEdit(id: string): Promise<EditTrip> {
+    const rows = await rpc<any[]>('trip_for_edit', { p_trip_id: id });
+    const t = rows?.[0];
+    if (!t) throw new Error('Trajet introuvable');
+    return {
+      id,
+      from: { label: t.origin_label, lng: t.origin_lng, lat: t.origin_lat },
+      to: { label: t.dest_label, lng: t.dest_lng, lat: t.dest_lat },
+      start: t.window_start,
+      flex: Math.round((new Date(t.window_end).getTime() - new Date(t.window_start).getTime()) / 60_000),
+      seats: t.seats,
+      price: t.cost_share_cents,
+    };
+  },
   cancelRequest: (id: string) => rpc<void>('cancel_request', { p_request_id: id }),
   setPhone: (phone: string) => rpc<void>('set_phone', { p_phone: phone }),
   setVehicle: (model: string, color: string, plate: string) =>
@@ -198,17 +225,19 @@ export const api = {
       mode === 'driver'
         ? supabase
             .from('trips')
-            .select('id,origin_label,dest_label,window_start,window_end,seats,seats_taken,status,cost_share_cents,duration_min,traffic_delay_min')
+            .select('id,origin_label,dest_label,window_start,window_end,seats,seats_taken,status,cost_share_cents,duration_min,traffic_delay_min,traffic_checked_at')
             .eq('driver_id', uid)
-            .in('status', ['open', 'full'])
+            .in('status', ['open', 'full', 'paused'])
         : supabase
             .from('requests')
             .select('id,origin_label,dest_label,window_start,window_end,seats,note')
             .eq('passenger_id', uid)
             .in('status', ['open', 'matched']);
-    const { data, error } = await q.order('window_start', { ascending: false }).limit(20);
+    // Les plus proches d'abord (les trajets récurrents peuvent être nombreux).
+    const since = new Date(Date.now() - 86400_000).toISOString();
+    const { data, error } = await q.gte('window_end', since).order('window_start', { ascending: true }).limit(60);
     if (error) throw new Error(error.message);
-    return ((data ?? []) as Listing[]).reverse();
+    return (data ?? []) as Listing[];
   },
 
   async candidates(mode: Mode, listingId: string): Promise<Candidate[]> {

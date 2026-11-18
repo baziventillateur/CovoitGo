@@ -462,3 +462,16 @@ small .traffic, dd .traffic { margin-left: 0.3rem; }
 @keyframes tick { from { transform: translateY(-0.35rem) scale(0.94); opacity: 0.3; } }
 .when-minutes { display: flex; gap: 0.35rem; justify-content: center; flex-wrap: wrap; }
 .when-minutes .fine { font-weight: 500; color: var(--muted); }
+
+/* Options du trajet : aller-retour, récurrence */
+.options { gap: 0.3rem; }
+.chip.day { width: 2rem; height: 2rem; padding: 0; border-radius: 50%; font-size: 0.8rem; }
+/* Trajet suspendu et menu d'actions */
+.folder.paused .listing-head > div { opacity: 0.55; }
+.paused-tag { display: inline-block; font-size: 0.74rem; font-weight: 700; color: #92400e; background: #fef3c7; padding: 0.12rem 0.45rem; border-radius: 999px; margin-top: 0.2rem; }
+.more { width: 2rem; height: 2rem; padding: 0; border-radius: 50%; font-size: 1.1rem; line-height: 1; flex: none; }
+.actions-sheet { display: grid; gap: 0.4rem; }
+.actions-sheet > small { color: var(--muted); }
+.actions-sheet button { text-align: left; padding: 0.6rem 0.75rem; font-weight: 600; }
+.actions-sheet button small { display: block; font-weight: 400; color: var(--muted); }
+.actions-sheet .danger-line { color: var(--danger); }

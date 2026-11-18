@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, type Candidate, type Listing, type Match, type Mode, type Notify } from './api';
+import { api, type Candidate, type EditTrip, type Listing, type Match, type Mode, type Notify } from './api';
 import { TrafficTag } from './Traffic';
 import { MatchCard } from './MatchCard';
 import { PublishForm } from './PublishForm';
@@ -22,11 +22,27 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
   const [ask, setAsk] = useState<{ text: string; yes: string; run: () => void } | null>(null);
   const [viewUser, setViewUser] = useState<{ id: string; name: string } | null>(null);
   const [helpFor, setHelpFor] = useState<Match | null>(null);
+  const [edit, setEdit] = useState<EditTrip | null>(null);
+  const [menuFor, setMenuFor] = useState<Listing | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const [all, mine] = await Promise.all([api.matches(), api.listings(mode, uid)]);
-      const found = await Promise.all(mine.map((l) => api.candidates(mode, l.id).catch(() => [])));
+      // La recherche ne tourne que pour les annonces actives des 7 prochains jours.
+      const soon = Date.now() + 7 * 86400_000;
+      const found = await Promise.all(
+        mine.map((l) =>
+          l.status === 'paused' || new Date(l.window_start).getTime() > soon ? [] : api.candidates(mode, l.id).catch(() => []),
+        ),
+      );
+      // Trajets de demain au plus tard, pas encore vus côté circulation : deux au maximum par chargement.
+      if (mode === 'driver') {
+        mine
+          .filter((l) => l.status === 'open' && !l.traffic_checked_at && new Date(l.window_start).getTime() < Date.now() + 86400_000)
+          .slice(0, 2)
+          .forEach((l) => api.traffic(l.id, false));
+      }
       setMatches(all.filter((m) => m.role === mode));
       setListings(mine);
       setCandidates(Object.fromEntries(mine.map((l, i) => [l.id, found[i]])));
@@ -62,15 +78,20 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
     setBusy(false);
   }
 
-  if (showForm) {
+  if (showForm || edit) {
     return (
       <PublishForm
         mode={mode}
         notify={notify}
-        onCancel={() => setShowForm(false)}
-        onDone={() => {
+        edit={edit ?? undefined}
+        onCancel={() => {
           setShowForm(false);
-          celebrate(driver ? 'Trajet publié !' : 'Recherche lancée !', driver ? '🚗' : '🔎');
+          setEdit(null);
+        }}
+        onDone={(message) => {
+          setShowForm(false);
+          setEdit(null);
+          celebrate(message ?? (driver ? 'Trajet publié !' : 'Recherche lancée !'), driver ? '🚗' : '🔎');
           load();
         }}
       />
@@ -94,6 +115,8 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
     }))
     // Une annonce dont le créneau est passé ne reste affichée que s'il s'y passe encore quelque chose.
     .filter((f) => f.mine.length > 0 || new Date(f.l.window_end).getTime() > now);
+  // Avec des trajets récurrents, seuls les premiers et ceux où il se passe quelque chose restent dépliés.
+  const visible = showAll ? folders : folders.filter((f, i) => i < 4 || f.mine.length > 0 || f.found.length > 0);
   const known = new Set(listings.map((l) => l.id));
   const orphans = active.filter((m) => !known.has(listingOf(m)));
 
@@ -210,16 +233,17 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
       ))}
 
       {folders.length > 0 && <h3 className="section">{driver ? 'Mes trajets' : 'Mes recherches'}</h3>}
-      {folders.map(({ l, mine, found }) => {
+      {visible.map(({ l, mine, found }) => {
         const confirmed = mine.some((m) => m.status === 'accepted');
         const left = (l.seats ?? 0) - (l.seats_taken ?? 0);
         // Passager : une fois le trajet confirmé, on ne propose plus d'autres conducteurs.
         // Conducteur : un trajet parti (ou complet) ne cherche plus de passagers.
         const departed = driver && l.status === 'full' && left > 0;
+        const paused = l.status === 'paused';
         const showFound = driver ? l.status === 'open' && left > 0 : !confirmed;
         const toAnswer = mine.filter((m) => m.status === 'proposed' && !m.proposed_by_me).length;
         return (
-          <div className={toAnswer ? 'card folder highlight' : 'card folder'} key={l.id}>
+          <div className={(toAnswer ? 'card folder highlight' : 'card folder') + (paused ? ' paused' : '')} key={l.id}>
             <div className="listing-head">
               <div>
                 <strong>
@@ -227,21 +251,27 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
                 </strong>
                 <small>
                   {fmt(l.window_start)} – {fmtTime(l.window_end)}
-                  {driver && (departed ? ' · en cours' : left > 0 ? ` · ${left} place(s) libre(s)` : ' · complet')}
+                  {driver && !paused && (departed ? ' · en cours' : left > 0 ? ` · ${left} place(s) libre(s)` : ' · complet')}
                   {driver && l.cost_share_cents ? ` · ${euros(l.cost_share_cents)}/passager` : ''}
                   {driver && l.duration_min ? ` · ≈ ${fmtDuration(l.duration_min)}` : ''}
                   {driver && <TrafficTag minutes={l.duration_min} delay={l.traffic_delay_min} />}
                   {!driver && (l.seats ?? 1) > 1 && ` · ${l.seats} personnes`}
                 </small>
                 {!driver && l.note && <small className="note">« {l.note} »</small>}
+                {paused && <span className="paused-tag">⏸ Suspendu · invisible pour les passagers</span>}
               </div>
+              {driver && !departed ? (
+                <button className="ghost more" aria-label="Actions sur ce trajet" disabled={busy} onClick={() => setMenuFor(l)}>
+                  ⋯
+                </button>
+              ) : (
               <button
                 className="ghost small"
                 disabled={busy}
                 onClick={() =>
                   setAsk({
                     text:
-                      (driver ? 'Supprimer ce trajet ?' : 'Supprimer cette recherche ?') +
+                      (driver ? 'Supprimer ce trajet ?' : 'Supprimer cette recherche ? Elle sera définitivement supprimée.') +
                       (mine.length ? ' Les personnes concernées seront prévenues.' : ''),
                     yes: 'Oui, supprimer',
                     run: () => run(() => (driver ? api.cancelTrip(l.id) : api.cancelRequest(l.id)), 'Supprimé'),
@@ -250,6 +280,7 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
               >
                 Supprimer
               </button>
+              )}
             </div>
 
             {mine.filter((m) => m.status === 'accepted').map(matchBlock)}
@@ -297,6 +328,12 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
         );
       })}
 
+      {folders.length > visible.length && (
+        <button className="link center" onClick={() => setShowAll(true)}>
+          Voir les {folders.length - visible.length} autres
+        </button>
+      )}
+
       {orphans.length > 0 && (
         <div className="card folder">
           <strong>Autres trajets en cours</strong>
@@ -335,6 +372,62 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
           onNo={() => setAsk(null)}
         />
       )}
+      {menuFor &&
+        (() => {
+          const l = menuFor;
+          const confirmed = matches.some((m) => m.trip_id === l.id && m.status === 'accepted');
+          const pending = matches.some((m) => m.trip_id === l.id && m.status === 'proposed');
+          const close = () => setMenuFor(null);
+          return (
+            <div className="sheet-backdrop" onClick={close}>
+              <div className="sheet actions-sheet" onClick={(e) => e.stopPropagation()}>
+                <strong>
+                  {l.origin_label} → {l.dest_label}
+                </strong>
+                <small>{fmt(l.window_start)}</small>
+                <button
+                  className="ghost"
+                  disabled={confirmed || l.status === 'full'}
+                  onClick={() => {
+                    close();
+                    run(async () => setEdit(await api.tripForEdit(l.id)));
+                  }}
+                >
+                  ✏️ Modifier
+                  <small>{confirmed ? 'Impossible : un passager est déjà confirmé.' : 'Adresses, heure, places, prix.'}</small>
+                </button>
+                {l.status === 'paused' ? (
+                  <button className="ghost" onClick={() => { close(); run(() => api.resumeTrip(l.id), 'Trajet de nouveau visible'); }}>
+                    ▶️ Reprendre
+                    <small>Le trajet redevient visible pour les passagers.</small>
+                  </button>
+                ) : (
+                  <button className="ghost" disabled={l.status !== 'open'} onClick={() => { close(); run(() => api.pauseTrip(l.id), 'Trajet suspendu'); }}>
+                    ⏸ Suspendre
+                    <small>
+                      Plus personne ne le voit, tu le gardes pour plus tard.{pending ? ' Les demandes en attente seront annulées.' : ''}
+                    </small>
+                  </button>
+                )}
+                <button
+                  className="ghost danger-line"
+                  onClick={() => {
+                    close();
+                    setAsk({
+                      text:
+                        'Veux-tu vraiment supprimer ce trajet ? Il sera définitivement supprimé.' +
+                        (confirmed || pending ? ' Les personnes concernées seront prévenues.' : ''),
+                      yes: 'Oui, supprimer',
+                      run: () => run(() => api.cancelTrip(l.id), 'Trajet supprimé'),
+                    });
+                  }}
+                >
+                  🗑 Supprimer
+                </button>
+              </div>
+            </div>
+          );
+        })()}
       {helpFor && <Assistance m={helpFor} notify={notify} onClose={() => setHelpFor(null)} />}
       {viewUser && <UserSheet userId={viewUser.id} name={viewUser.name} onClose={() => setViewUser(null)} />}
     </>

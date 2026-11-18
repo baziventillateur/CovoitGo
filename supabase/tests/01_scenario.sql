@@ -277,4 +277,32 @@ begin
   if traffic_reserve_slots(gen_random_uuid(), 3) then raise exception 'ECHEC créneaux : inconnu accepté'; end if;
 end $$;
 
+-- Suspendre, reprendre, modifier, supprimer un trajet.
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
+do $$
+declare v_trip uuid; v_new uuid;
+begin
+  v_trip := publish_trip('Lyon', 4.8357, 45.7640, 'Villeurbanne', 4.8795, 45.7719,
+                         now() + interval '3 days', now() + interval '3 days 2 hours', 3, 0);
+  perform pause_trip(v_trip);
+  if (select status from trips where id = v_trip) <> 'paused' then raise exception 'ECHEC suspension'; end if;
+  begin perform publish_trip('Lyon', 4.8357, 45.7640, 'Villeurbanne', 4.8795, 45.7719,
+                         now() + interval '3 days', now() + interval '3 days 2 hours', 3, 0);
+    raise exception 'ECHEC : doublon d''un trajet suspendu accepté';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; end;
+  perform resume_trip(v_trip);
+  if (select status from trips where id = v_trip) <> 'open' then raise exception 'ECHEC reprise'; end if;
+  if (select count(*) from trip_for_edit(v_trip)) <> 1 then raise exception 'ECHEC lecture pour modification'; end if;
+  perform pause_trip(v_trip);
+  v_new := replace_trip(v_trip, 'Lyon', 4.8357, 45.7640, 'Bron', 4.9130, 45.7390,
+                        now() + interval '4 days', now() + interval '4 days 1 hour', 2, 0);
+  if (select status from trips where id = v_trip) <> 'cancelled' then raise exception 'ECHEC modification : ancien trajet conservé'; end if;
+  if (select status from trips where id = v_new) <> 'paused' or (select dest_label from trips where id = v_new) <> 'Bron' then
+    raise exception 'ECHEC modification';
+  end if;
+  perform cancel_trip(v_new);
+  if (select status from trips where id = v_new) <> 'cancelled' then raise exception 'ECHEC suppression'; end if;
+end $$;
+
 \echo 'TOUS LES TESTS PASSENT'
