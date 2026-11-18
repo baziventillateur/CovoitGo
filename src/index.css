@@ -441,3 +441,8 @@ button:active:not(:disabled) { transform: scale(0.96); }
 .traffic.heavy i { background: var(--danger); }
 .traffic em { font-style: normal; font-weight: 400; color: var(--muted); opacity: 0.85; }
 small .traffic, dd .traffic { margin-left: 0.3rem; }
+
+/* Meilleurs créneaux selon le trafic */
+.slots-link { text-align: left; padding: 0.15rem 0; font-size: 0.8rem; }
+.chip.slot { font-weight: 500; font-size: 0.8rem; padding: 0.28rem 0.55rem; }
+.chip.slot.best { border-color: #16a34a; color: #15803d; background: #f0fdf4; font-weight: 700; }

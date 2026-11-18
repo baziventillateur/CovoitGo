@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { supabase } from './supabase';
 import { PlaceInput } from './PlaceInput';
 import { fetchRoute, type Place } from './geo';
-import { euros, fmtDuration, nextQuarterLocal } from './format';
+import { euros, fmtDuration, fmtTime, nextQuarterLocal } from './format';
 import { api, type Mode, type Notify } from './api';
 
 const FLEX = [
@@ -27,6 +27,23 @@ export function PublishForm({ mode, notify, onDone, onCancel }: Props) {
   const [people, setPeople] = useState(1);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  // Créneaux comparés selon la circulation : uniquement si le conducteur le demande.
+  const [slots, setSlots] = useState<{ at: string; minutes: number; delay_min: number }[] | 'loading' | 'none' | null>(null);
+
+  useEffect(() => setSlots(null), [from, to, flex]);
+
+  async function loadSlots() {
+    if (!from || !to) return;
+    setSlots('loading');
+    const found = await api.trafficSlots(from, to, new Date(when).toISOString(), flex);
+    setSlots(found?.length ? found : 'none');
+  }
+
+  function pickSlot(iso: string) {
+    const d = new Date(iso);
+    const p = (n: number) => String(n).padStart(2, '0');
+    setWhen(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`);
+  }
 
   useEffect(() => {
     setQuote(null);
@@ -96,7 +113,7 @@ export function PublishForm({ mode, notify, onDone, onCancel }: Props) {
       <PlaceInput label="Arrivée" value={to} onChange={setTo} />
       <label>
         {driver ? 'Je pars à partir de' : 'Je suis prêt à partir de'}
-        <input type="datetime-local" required value={when} onChange={(e) => setWhen(e.target.value)} />
+        <input type="datetime-local" required value={when} onChange={(e) => { setWhen(e.target.value); setSlots(null); }} />
       </label>
       <div className="field">
         <span>{driver ? 'Je peux partir jusqu’à' : 'Je peux attendre jusqu’à'}</span>
@@ -108,6 +125,33 @@ export function PublishForm({ mode, notify, onDone, onCancel }: Props) {
           ))}
         </div>
         <small>Plus ta fenêtre est large, plus tu as de chances de trouver.</small>
+        {driver && from && to && slots === null && (
+          <button type="button" className="link slots-link" onClick={loadSlots}>
+            Voir les meilleurs créneaux selon le trafic
+          </button>
+        )}
+        {slots === 'loading' && <small>Comparaison des créneaux…</small>}
+        {slots === 'none' && <small>Créneaux indisponibles pour le moment.</small>}
+        {Array.isArray(slots) &&
+          (() => {
+            const best = Math.min(...slots.map((s) => s.minutes));
+            const flat = Math.max(...slots.map((s) => s.minutes)) - best < 3;
+            return (
+              <>
+                <div className="chips">
+                  {slots.map((s) => (
+                    <button type="button" key={s.at} className={!flat && s.minutes === best ? 'chip slot best' : 'chip slot'} onClick={() => pickSlot(s.at)}>
+                      {fmtTime(s.at)} · {fmtDuration(s.minutes)}
+                    </button>
+                  ))}
+                </div>
+                <small>
+                  {flat ? 'Peu d’écart sur ta fenêtre : pars quand tu veux.' : 'Le plus rapide est en vert. Touche un créneau pour partir à cette heure.'} Durées
+                  estimées.
+                </small>
+              </>
+            );
+          })()}
       </div>
       {driver && (
         <>

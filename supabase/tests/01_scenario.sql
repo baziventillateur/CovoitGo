@@ -265,4 +265,16 @@ begin
   end if;
 end $$;
 
+-- Meilleurs créneaux : 6 demandes par personne et par jour.
+do $$
+declare v_user uuid; i int;
+begin
+  select id into v_user from profiles limit 1;
+  for i in 1..6 loop
+    if not traffic_reserve_slots(v_user, 3) then raise exception 'ECHEC créneaux : demande % refusée', i; end if;
+  end loop;
+  if traffic_reserve_slots(v_user, 3) then raise exception 'ECHEC créneaux : 7e demande acceptée'; end if;
+  if traffic_reserve_slots(gen_random_uuid(), 3) then raise exception 'ECHEC créneaux : inconnu accepté'; end if;
+end $$;
+
 \echo 'TOUS LES TESTS PASSENT'

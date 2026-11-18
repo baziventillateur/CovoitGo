@@ -123,6 +123,22 @@ export const api = {
     rpc<string>('propose_match', { p_trip_id: tripId, p_request_id: requestId }),
   respond: (id: string, accept: boolean) => rpc<string>('respond_match', { p_match_id: id, p_accept: accept }),
   advance: (id: string) => rpc<string>('advance_match', { p_match_id: id }),
+  // Trois heures de départ comparées selon la circulation habituelle (à la demande du conducteur).
+  async trafficSlots(
+    from: { lat: number; lng: number },
+    to: { lat: number; lng: number },
+    start: string,
+    flexMin: number,
+  ): Promise<{ at: string; minutes: number; delay_min: number }[] | null> {
+    try {
+      const { data } = await supabase.functions.invoke('trafic', {
+        body: { slots: { from: { lat: from.lat, lng: from.lng }, to: { lat: to.lat, lng: to.lng }, start, flex_min: flexMin } },
+      });
+      return data?.ok ? data.slots : null;
+    } catch {
+      return null;
+    }
+  },
   // Durée avec la circulation, calculée côté serveur. Sans effet si le service n'est pas configuré.
   async traffic(tripId: string, live: boolean): Promise<void> {
     try {
