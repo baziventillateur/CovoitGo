@@ -30,6 +30,7 @@ export type Match = {
   vehicle_plate: string | null;
   updated_at: string;
   ride_minutes: number | null;
+  traffic_delay_min?: number | null;
 };
 
 export type Listing = {
@@ -62,6 +63,7 @@ export type Candidate = {
   seats_left?: number;
   cost_share_cents?: number;
   ride_minutes?: number;
+  traffic_delay_min?: number | null;
   seats?: number;
   note?: string | null;
 };
@@ -103,6 +105,17 @@ export const api = {
       const { data } = await supabase.from('matches').select('id,ride_minutes').in('id', live);
       const minutes = new Map((data ?? []).map((r: any) => [r.id, r.ride_minutes]));
       for (const m of list) m.ride_minutes = minutes.get(m.id) ?? null;
+      // Retard dû à la circulation, ramené à la portion du passager.
+      const tripIds = [...new Set(list.filter((m) => m.status === 'accepted').map((m) => m.trip_id))];
+      const { data: trips } = await supabase.from('trips').select('id,duration_min,traffic_delay_min').in('id', tripIds);
+      const byTrip = new Map((trips ?? []).map((t: any) => [t.id, t]));
+      for (const m of list) {
+        const t = byTrip.get(m.trip_id);
+        m.traffic_delay_min =
+          t?.traffic_delay_min != null && t.duration_min > 0 && m.ride_minutes
+            ? Math.round(t.traffic_delay_min * Math.min(1, m.ride_minutes / t.duration_min))
+            : null;
+      }
     }
     return list;
   },

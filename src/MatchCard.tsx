@@ -3,6 +3,7 @@ import { euros, fmt, fmtDuration } from './format';
 
 import { Rating } from './Reviews';
 import { TripTracker } from './TripTracker';
+import { TrafficTag } from './Traffic';
 
 type Props = { m: Match; busy: boolean; onAdvance: () => void; onCancel: () => void; onUser: () => void; onHelp: () => void; meName: string };
 
@@ -83,7 +84,10 @@ export function MatchCard({ m, busy, onAdvance, onCancel, onUser, onHelp, meName
         {m.ride_minutes && (
           <>
             <dt>Durée</dt>
-            <dd>≈ {fmtDuration(m.ride_minutes)}</dd>
+            <dd>
+              ≈ {fmtDuration(m.ride_minutes)}
+              <TrafficTag minutes={m.ride_minutes} delay={m.traffic_delay_min} />
+            </dd>
           </>
         )}
         {driver && (
