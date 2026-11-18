@@ -17,6 +17,21 @@ select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001
 insert into ids select 'trip', publish_trip('Argenteuil', 2.2470, 48.9472, 'Paris Saint-Lazare', 2.3256, 48.8763,
                                             now() - interval '1 hour', now() + interval '3 hours', 2);
 
+\echo '--- Prix : barème, fourchette, refus hors fourchette'
+select km, price_for_km(km) as conseille, price_margin(price_for_km(km)) as marge
+  from (values (3::numeric), (5), (10), (23), (40), (100), (300)) v(km);
+select * from quote_trip(2.2470, 48.9472, 2.3256, 48.8763);
+do $$ declare q record; begin
+  select * into q from quote_trip(2.2470, 48.9472, 2.3256, 48.8763);
+  if (select cost_share_cents from trips) <> q.reco_cents then raise exception 'ECHEC : prix par défaut = prix conseillé'; end if;
+  begin perform publish_trip('X', 2.2470, 48.9472, 'Y', 2.40, 48.80, now(), now() + interval '1 hour', 2, 5000);
+    raise exception 'ECHEC : prix abusif accepté';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; raise notice 'refusé : %', sqlerrm; end;
+  begin perform publish_trip('X', 2.2470, 48.9472, 'Y', 2.40, 48.80, now(), now() + interval '1 hour', 2, 10);
+    raise exception 'ECHEC : prix trop bas accepté';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; raise notice 'refusé : %', sqlerrm; end;
+end $$;
+
 -- A : Asnières -> Saint-Lazare, plus tard mais dans la fenêtre  => DOIT matcher
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
 insert into ids select 'reqA', publish_request('Asnières', 2.2855, 48.9105, 'Saint-Lazare', 2.3240, 48.8770,
@@ -47,7 +62,7 @@ begin
 end $$;
 
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
-select driver_name, pickup_m, dropoff_m, shared_km, seats_left,
+select driver_name, pickup_m, dropoff_m, shared_km, seats_left, cost_share_cents as prix_passager,
        overlap_end - overlap_start as creneau_commun
   from find_trips_for_request((select v from ids where k = 'reqA'));
 
@@ -104,6 +119,11 @@ do $$ begin
   if (select count(*) from notifications) <> 1 then raise exception 'ECHEC : le conducteur doit avoir 1 notification (demande)'; end if;
   if (select other_phone from my_matches()) is not null then raise exception 'ECHEC : téléphone visible avant acceptation'; end if;
   if exists (select 1 from profile_private where user_id <> auth.uid()) then raise exception 'ECHEC RLS téléphone'; end if;
+end $$;
+do $$ begin
+  if (select cost_share_cents from my_matches()) >= (select cost_share_cents from trips where id = (select v from ids where k='trip')) then
+    raise exception 'ECHEC : le passager d''une portion doit payer moins que le trajet complet'; end if;
+  if (select cost_share_cents from my_matches()) < 100 then raise exception 'ECHEC prix figé'; end if;
 end $$;
 select set_vehicle('Peugeot 208', 'grise', 'ab-123-cd');
 -- Un groupe de 3 ne rentre pas dans un trajet à 2 places

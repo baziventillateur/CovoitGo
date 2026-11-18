@@ -40,6 +40,7 @@ export type Listing = {
   seats_taken?: number;
   note?: string | null;
   status?: string;
+  cost_share_cents?: number;
 };
 
 export type Candidate = {
@@ -145,7 +146,7 @@ export const api = {
       mode === 'driver'
         ? supabase
             .from('trips')
-            .select('id,origin_label,dest_label,window_start,window_end,seats,seats_taken,status')
+            .select('id,origin_label,dest_label,window_start,window_end,seats,seats_taken,status,cost_share_cents')
             .eq('driver_id', uid)
             .in('status', ['open', 'full'])
         : supabase

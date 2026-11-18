@@ -346,3 +346,9 @@ p.block { margin: 0; }
 .support-card > span:first-child { font-size: 1.4rem; }
 .support-card > span:last-child { font-size: 1.3rem; color: var(--muted); }
 a.link { display: block; text-align: center; font-size: 0.85rem; }
+
+/* Réglage du prix */
+.price-box { display: flex; align-items: center; gap: 0.5rem; background: var(--bg); border-radius: 11px; padding: 0.4rem; }
+.price-value { flex: 1; text-align: center; }
+.price-value strong { font-size: 1.35rem; display: block; }
+.step { width: 2.4rem; height: 2.4rem; padding: 0; border-radius: 50%; background: #fff; border: 1px solid var(--line); font-size: 1.3rem; font-weight: 700; color: var(--brand); }

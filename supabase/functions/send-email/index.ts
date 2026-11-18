@@ -71,7 +71,7 @@ async function sendForNotification(id: number): Promise<string> {
   const to = user?.user?.email;
   if (!to) return 'no-email';
 
-  const { data: m } = await supabase.from('matches').select('trip_id,request_id,driver_id,passenger_id').eq('id', n.match_id).single();
+  const { data: m } = await supabase.from('matches').select('trip_id,request_id,driver_id,passenger_id,price_cents').eq('id', n.match_id).single();
   if (!m) return 'no-match';
   const driver = n.role === 'driver';
   const [{ data: trip }, { data: request }, { data: me }, { data: other }] = await Promise.all([
@@ -90,7 +90,9 @@ async function sendForNotification(id: number): Promise<string> {
     [driver ? 'Ton passager' : 'Ton chauffeur', who],
   ];
   if (driver && request.seats > 1) rows.push(['Passagers', `${request.seats} personnes`]);
-  if (trip.cost_share_cents > 0) rows.push(['Participation', (trip.cost_share_cents / 100).toFixed(2).replace('.', ',') + ' €']);
+  // Prix figé à la mise en relation (portion du passager) ; à défaut, prix du trajet complet.
+  const price = m.price_cents ?? trip.cost_share_cents;
+  if (price > 0) rows.push([driver ? 'Tu reçois' : 'À payer', (price / 100).toFixed(2).replace('.', ',') + ' €']);
 
   const unsub = `${SELF_URL}?unsubscribe=${prefs.token}`;
   let subject: string;

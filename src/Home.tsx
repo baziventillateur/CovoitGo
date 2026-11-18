@@ -212,6 +212,7 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
                 <small>
                   {fmt(l.window_start)} – {fmtTime(l.window_end)}
                   {driver && (departed ? ' · en cours' : left > 0 ? ` · ${left} place(s) libre(s)` : ' · complet')}
+                  {driver && l.cost_share_cents ? ` · ${euros(l.cost_share_cents)}/passager` : ''}
                   {!driver && (l.seats ?? 1) > 1 && ` · ${l.seats} personnes`}
                 </small>
                 {!driver && l.note && <small className="note">« {l.note} »</small>}

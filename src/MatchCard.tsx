@@ -102,7 +102,7 @@ export function MatchCard({ m, busy, onAdvance, onCancel, onUser, onHelp }: Prop
         )}
         {m.cost_share_cents > 0 && (
           <>
-            <dt>Participation</dt>
+            <dt>{driver ? 'Tu reçois' : 'À payer'}</dt>
             <dd>{euros(m.cost_share_cents)}</dd>
           </>
         )}
