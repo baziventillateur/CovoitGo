@@ -352,3 +352,64 @@ a.link { display: block; text-align: center; font-size: 0.85rem; }
 .price-value { flex: 1; text-align: center; }
 .price-value strong { font-size: 1.35rem; display: block; }
 .step { width: 2.4rem; height: 2.4rem; padding: 0; border-radius: 50%; background: #fff; border: 1px solid var(--line); font-size: 1.3rem; font-weight: 700; color: var(--brand); }
+
+/* =====================================================================
+   Deux univers distincts : conducteur (vert) et passager (indigo).
+   ===================================================================== */
+.mode-driver { --brand: #0f766e; --brand-dark: #115e59; --brand-soft: #ccfbf1; --bg: #ecf5f3; }
+.mode-passenger { --brand: #4f46e5; --brand-dark: #4338ca; --brand-soft: #e0e7ff; --bg: #eef0fc; }
+.app { background: var(--bg); }
+header { grid-template-columns: 1fr auto !important; grid-template-areas: 'badge bell' !important; padding: 0.55rem 0.7rem; }
+.mode-badge { grid-area: badge; display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.mode-badge > span:first-child { font-size: 1.5rem; }
+.mode-badge small { color: rgb(255 255 255 / 0.75); font-size: 0.68rem; letter-spacing: 0.04em; text-transform: uppercase; }
+.mode-badge strong { display: block; font-size: 1rem; line-height: 1.1; }
+nav { border-top: 2px solid var(--brand); }
+.mode-card { display: flex; align-items: center; gap: 0.6rem; border-left: 4px solid var(--brand); }
+.mode-emoji { font-size: 1.5rem; }
+
+/* Transition lente entre les deux modes */
+.mode-flip { position: fixed; inset: 0; z-index: 60; background: var(--brand); display: grid; place-items: center; animation: flip-bg 1.7s ease-in-out both; }
+.mode-flip-card { color: #fff; text-align: center; display: grid; gap: 0.4rem; animation: flip-card 1.7s ease-in-out both; }
+.mode-flip-card span { font-size: 4rem; }
+.mode-flip-card strong { font-size: 1.5rem; }
+@keyframes flip-bg { 0% { opacity: 0; } 30%, 72% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes flip-card {
+  0% { transform: perspective(700px) rotateY(-95deg) scale(0.8); }
+  38%, 70% { transform: perspective(700px) rotateY(0) scale(1); }
+  100% { transform: perspective(700px) rotateY(95deg) scale(0.8); }
+}
+
+/* Tampon de validation des actions importantes */
+.stamp { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; pointer-events: none; background: rgb(15 23 42 / 0.18); animation: stamp-fade 1.3s ease both; }
+.stamp-box { position: relative; background: #fff; border-radius: 20px; padding: 1.1rem 1.4rem; display: grid; justify-items: center; gap: 0.3rem; box-shadow: 0 12px 32px rgb(15 23 42 / 0.25); animation: stamp-pop 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+.stamp-emoji { font-size: 2.6rem; }
+.stamp-check { position: absolute; top: 0.6rem; right: 0.7rem; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: #16a34a; color: #fff; font-weight: 800; display: grid; place-items: center; font-size: 0.9rem; animation: stamp-pop 0.4s 0.2s cubic-bezier(0.2, 1.8, 0.4, 1) both; }
+.stamp-box strong { font-size: 1.05rem; }
+@keyframes stamp-pop { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes stamp-fade { 0%, 75% { opacity: 1; } 100% { opacity: 0; } }
+button { transition: transform 0.08s ease; }
+button:active:not(:disabled) { transform: scale(0.96); }
+
+/* Points : jamais confondus avec des euros */
+.pts { background: #fef3c7; color: #92400e; font-weight: 800; font-size: 0.78rem; padding: 0.15rem 0.5rem; border-radius: 999px; white-space: nowrap; }
+.big-pts { font-size: 0.95rem; padding: 0.3rem 0.8rem; }
+.points { color: #b45309; }
+
+/* Suivi animé du trajet */
+.tracker { background: var(--bg); border-radius: 11px; padding: 0.35rem 0.4rem 0.4rem; }
+.tracker svg { display: block; width: 100%; height: auto; }
+.track-label { font-size: 8.5px; fill: #64748b; font-weight: 600; }
+.car-move { transition: transform 4s linear; }
+.track-done { transition: all 4s linear; }
+.car.jit { animation: jit 0.32s linear infinite; }
+@keyframes jit { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(0.4px, -0.9px); } 50% { transform: translate(-0.3px, 0.3px); } 75% { transform: translate(0.3px, -0.5px); } }
+.track-caption { display: flex; align-items: center; justify-content: center; gap: 0.4rem; text-align: center; font-weight: 600; color: var(--ink); }
+.mini-spin { width: 0.8rem; height: 0.8rem; border-radius: 50%; border: 2px solid var(--brand-soft); border-top-color: var(--brand); animation: spin 0.9s linear infinite; }
+.live-emoji.riding { position: relative; display: grid; place-items: center; width: 2.6rem; height: 2.6rem; font-size: 1.2rem; }
+.live-emoji.riding::before { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 3px solid var(--brand-soft); border-top-color: var(--brand); animation: spin 1.1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .car.jit, .mini-spin, .live-emoji.riding::before { animation: none; }
+  .mode-flip, .mode-flip-card { animation-duration: 0.6s; }
+}

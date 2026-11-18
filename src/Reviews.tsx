@@ -47,7 +47,7 @@ export function ReviewCard({ name, points, route, busy, onSubmit }: CardProps) {
         <br />
         <small>{route}</small>
       </p>
-      <span className="level">+{points} points</span>
+      <span className="pts big-pts">⭐ +{points} points</span>
       <p className="ask">Comment ça s’est passé avec {name} ?</p>
       <Stars value={rating} onChange={setRating} />
       <small>{WORDS[rating] || 'Touche une étoile pour noter'}</small>

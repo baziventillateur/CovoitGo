@@ -7,9 +7,10 @@ import { Rating, ReviewCard, UserSheet } from './Reviews';
 import { ConfirmDialog } from './ConfirmDialog';
 import { Assistance } from './Assistance';
 
-type Props = { mode: Mode; uid: string; refreshKey: number; notify: Notify; onChanged: () => void };
+type Celebrate = (text: string, emoji: string) => void;
+type Props = { mode: Mode; uid: string; meName: string; refreshKey: number; notify: Notify; celebrate: Celebrate; onChanged: () => void };
 
-export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
+export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChanged }: Props) {
   const driver = mode === 'driver';
   const [matches, setMatches] = useState<Match[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
@@ -42,11 +43,16 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
     load();
   }, [load, refreshKey]);
 
-  async function run(action: () => Promise<unknown>, success?: string) {
+  // « big » : action importante, validée par un tampon animé et une vibration.
+  async function run(action: () => Promise<unknown>, success?: string, big?: string) {
     setBusy(true);
     try {
-      await action();
-      if (success) notify(success);
+      const result = await action();
+      if (result === 'driver_en_route') celebrate('C’est parti !', '🚗');
+      else if (result === 'driver_arrived') celebrate('Covoiturage démarré', '🙌');
+      else if (result === 'completed') celebrate('Trajet terminé !', '🏁');
+      else if (big && success) celebrate(success, big);
+      else if (success) notify(success);
       await load();
       onChanged();
     } catch (e) {
@@ -63,6 +69,7 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
         onCancel={() => setShowForm(false)}
         onDone={() => {
           setShowForm(false);
+          celebrate(driver ? 'Trajet publié !' : 'Recherche lancée !', driver ? '🚗' : '🔎');
           load();
         }}
       />
@@ -103,6 +110,7 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
             onAdvance={() => run(() => api.advance(m.id))}
             onUser={person(m)}
             onHelp={() => setHelpFor(m)}
+            meName={meName}
             onCancel={() =>
               setAsk({
                 text: `Annuler ton trajet avec ${m.other_name} ? ${m.other_name} sera prévenu.`,
@@ -135,7 +143,7 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
             </button>
           </div>
           <div className="row2">
-            <button className="primary" disabled={busy} onClick={() => run(() => api.respond(m.id, true), 'Trajet confirmé !')}>
+            <button className="primary" disabled={busy} onClick={() => run(() => api.respond(m.id, true), 'Trajet confirmé !', '🤝')}>
               Accepter
             </button>
             <button className="ghost" disabled={busy} onClick={() => run(() => api.respond(m.id, false))}>
@@ -189,7 +197,7 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
           points={driver ? 15 : 10}
           route={`${m.pickup_label} → ${m.dropoff_label}`}
           busy={busy}
-          onSubmit={(rating, comment) => run(() => api.review(m.id, rating, comment), 'Merci pour ton avis !')}
+          onSubmit={(rating, comment) => run(() => api.review(m.id, rating, comment), 'Merci pour ton avis !', '⭐')}
         />
       ))}
 
@@ -260,7 +268,7 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
                     <button
                       className="primary small"
                       disabled={busy}
-                      onClick={() => run(() => api.propose(c.trip_id, c.request_id), driver ? 'Proposition envoyée' : 'Demande envoyée')}
+                      onClick={() => run(() => api.propose(c.trip_id, c.request_id), driver ? 'Proposition envoyée' : 'Demande envoyée', '✋')}
                     >
                       {driver ? 'Proposer' : 'Demander'}
                     </button>
@@ -300,7 +308,7 @@ export function Home({ mode, uid, refreshKey, notify, onChanged }: Props) {
               · {fmt(m.meet_at)}
             </small>
           </div>
-          <span className="pts">+{driver ? 15 : 10}</span>
+          <span className="pts">⭐ +{driver ? 15 : 10} pts</span>
         </div>
       ))}
 

@@ -7,6 +7,8 @@ import { Home } from './Home';
 import { Profile } from './Profile';
 import { Notifications } from './Notifications';
 import { Unsubscribe } from './Unsubscribe';
+import { ConfirmDialog } from './ConfirmDialog';
+import { haptic } from './feedback';
 import { playSound, soundFor, unlockSounds } from './sounds';
 
 function savedMode(): Mode | null {
@@ -27,6 +29,10 @@ export default function App() {
   const [showNotifs, setShowNotifs] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [toast, setToast] = useState<{ text: string; kind: 'ok' | 'err' } | null>(null);
+  const [meName, setMeName] = useState('');
+  const [stamp, setStamp] = useState<{ text: string; emoji: string } | null>(null);
+  const [askSwitch, setAskSwitch] = useState<Mode | null>(null);
+  const [flipTo, setFlipTo] = useState<Mode | null>(null);
   const lastNotifId = useRef(0);
   const uid = session?.user.id;
 
@@ -34,6 +40,26 @@ export default function App() {
     setToast({ text, kind });
     window.setTimeout(() => setToast((t) => (t?.text === text ? null : t)), 3500);
   }, []);
+
+  // Tampon animé + vibration : pour les actions qui engagent (accepter, démarrer, terminer…).
+  const celebrate = useCallback((text: string, emoji: string) => {
+    haptic('success');
+    setStamp({ text, emoji });
+    window.setTimeout(() => setStamp((cur) => (cur?.text === text ? null : cur)), 1300);
+  }, []);
+
+  // Changer de mode est un vrai changement d'univers : confirmation, puis transition lente.
+  function switchMode(target: Mode) {
+    setAskSwitch(null);
+    setShowNotifs(false);
+    haptic('success');
+    setFlipTo(target);
+    window.setTimeout(() => {
+      setMode(target);
+      setTab('home');
+    }, 650);
+    window.setTimeout(() => setFlipTo(null), 1700);
+  }
 
   function setMode(m: Mode) {
     setModeState(m);
@@ -85,6 +111,7 @@ export default function App() {
     if (!uid) return;
     lastNotifId.current = 0;
     loadNotifs();
+    supabase.from('profiles').select('display_name').eq('id', uid).single().then(({ data }) => setMeName(data?.display_name ?? ''));
     // Après une connexion par code (mot de passe oublié), on invite à en choisir un nouveau.
     try {
       if (sessionStorage.getItem('covoitgo-nouveau-mdp')) {
@@ -139,14 +166,12 @@ export default function App() {
   return (
     <div className={`app mode-${mode}`}>
       <header>
-        <div className="brand">CovoitGo</div>
-        <div className="switch" role="tablist">
-          <button className={mode === 'driver' ? 'on' : ''} onClick={() => setMode('driver')}>
-            🚗 Conducteur
-          </button>
-          <button className={mode === 'passenger' ? 'on' : ''} onClick={() => setMode('passenger')}>
-            🙋 Passager
-          </button>
+        <div className="mode-badge">
+          <span>{mode === 'driver' ? '🚗' : '🙋'}</span>
+          <span>
+            <small>CovoitGo</small>
+            <strong>Mode {mode === 'driver' ? 'conducteur' : 'passager'}</strong>
+          </span>
         </div>
         <button
           className="bell"
@@ -162,9 +187,9 @@ export default function App() {
 
       <main>
         {tab === 'home' ? (
-          <Home mode={mode} uid={uid} refreshKey={refreshKey} notify={notify} onChanged={loadNotifs} />
+          <Home mode={mode} uid={uid} meName={meName} refreshKey={refreshKey} notify={notify} celebrate={celebrate} onChanged={loadNotifs} />
         ) : (
-          <Profile uid={uid} notify={notify} />
+          <Profile uid={uid} notify={notify} mode={mode} onSwitchMode={() => setAskSwitch(mode === 'driver' ? 'passenger' : 'driver')} />
         )}
       </main>
 
@@ -182,13 +207,41 @@ export default function App() {
           items={notifs}
           onClose={() => setShowNotifs(false)}
           onOpen={(role) => {
-            setMode(role);
+            // Une notification de l'autre mode ne fait pas basculer sans prévenir.
+            if (role !== mode) return setAskSwitch(role);
             setTab('home');
             setShowNotifs(false);
           }}
         />
       )}
       {toast && <div className={`toast ${toast.kind}`}>{toast.text}</div>}
+      {askSwitch && (
+        <ConfirmDialog
+          calm
+          emoji={askSwitch === 'driver' ? '🚗' : '🙋'}
+          text={`Passer en mode ${askSwitch === 'driver' ? 'conducteur' : 'passager'} ? Tes trajets en mode ${mode === 'driver' ? 'conducteur' : 'passager'} restent en place, tu les retrouveras en revenant.`}
+          yes={`Oui, passer en mode ${askSwitch === 'driver' ? 'conducteur' : 'passager'}`}
+          onYes={() => switchMode(askSwitch)}
+          onNo={() => setAskSwitch(null)}
+        />
+      )}
+      {stamp && (
+        <div className="stamp" aria-live="polite">
+          <div className="stamp-box">
+            <span className="stamp-emoji">{stamp.emoji}</span>
+            <span className="stamp-check">✓</span>
+            <strong>{stamp.text}</strong>
+          </div>
+        </div>
+      )}
+      {flipTo && (
+        <div className={`mode-flip mode-${flipTo}`}>
+          <div className="mode-flip-card">
+            <span>{flipTo === 'driver' ? '🚗' : '🙋'}</span>
+            <strong>Mode {flipTo === 'driver' ? 'conducteur' : 'passager'}</strong>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

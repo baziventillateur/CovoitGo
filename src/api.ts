@@ -28,6 +28,8 @@ export type Match = {
   vehicle_model: string | null;
   vehicle_color: string | null;
   vehicle_plate: string | null;
+  updated_at: string;
+  ride_minutes: number | null;
 };
 
 export type Listing = {
@@ -90,7 +92,17 @@ async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
 }
 
 export const api = {
-  matches: () => rpc<Match[]>('my_matches'),
+  async matches(): Promise<Match[]> {
+    const list = (await rpc<Match[]>('my_matches')) ?? [];
+    // Durée estimée des trajets confirmés : lue sur la mise en relation elle-même.
+    const live = list.filter((m) => m.status === 'accepted').map((m) => m.id);
+    if (live.length) {
+      const { data } = await supabase.from('matches').select('id,ride_minutes').in('id', live);
+      const minutes = new Map((data ?? []).map((r: any) => [r.id, r.ride_minutes]));
+      for (const m of list) m.ride_minutes = minutes.get(m.id) ?? null;
+    }
+    return list;
+  },
   propose: (tripId: string, requestId: string) =>
     rpc<string>('propose_match', { p_trip_id: tripId, p_request_id: requestId }),
   respond: (id: string, accept: boolean) => rpc<string>('respond_match', { p_match_id: id, p_accept: accept }),

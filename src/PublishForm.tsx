@@ -79,7 +79,6 @@ export function PublishForm({ mode, notify, onDone, onCancel }: Props) {
       : await supabase.rpc('publish_request', { ...common, p_seats: people, p_note: note });
     setBusy(false);
     if (error) return notify(error.message, 'err');
-    notify(driver ? 'Trajet publié !' : 'Recherche lancée !');
     onDone();
   }
 

@@ -2,19 +2,17 @@ import type { Match } from './api';
 import { euros, fmt } from './format';
 
 import { Rating } from './Reviews';
+import { TripTracker } from './TripTracker';
 
-const STAGES = ['scheduled', 'driver_en_route', 'driver_arrived', 'on_board'] as const;
-const STEP_LABELS = ['Confirmé', 'En route', 'Au rendez-vous', 'Arrivée'];
-
-type Props = { m: Match; busy: boolean; onAdvance: () => void; onCancel: () => void; onUser: () => void; onHelp: () => void };
+type Props = { m: Match; busy: boolean; onAdvance: () => void; onCancel: () => void; onUser: () => void; onHelp: () => void; meName: string };
 
 // Carte d'un trajet accepté : étapes en direct, coordonnées, action suivante.
-export function MatchCard({ m, busy, onAdvance, onCancel, onUser, onHelp }: Props) {
+export function MatchCard({ m, busy, onAdvance, onCancel, onUser, onHelp, meName }: Props) {
   const driver = m.role === 'driver';
-  const step = STAGES.indexOf(m.stage);
   const name = m.other_name;
 
-  let emoji = '📅';
+  let emoji = '🕒';
+  let riding = false;
   let title = `Rendez-vous ${fmt(m.meet_at)}`;
   let sub = driver ? `Tu passes prendre ${name}` : `${name} n’est pas encore parti`;
   let action: string | null = driver ? `Je pars chercher ${name}` : null;
@@ -25,30 +23,24 @@ export function MatchCard({ m, busy, onAdvance, onCancel, onUser, onHelp }: Prop
     sub = driver ? m.pickup_label : 'Prépare-toi, ton chauffeur est en route';
     action = driver ? 'Je suis arrivé' : null;
   } else if (m.stage === 'driver_arrived' || m.stage === 'on_board') {
-    emoji = '📍';
-    title = driver ? `Tu es au rendez-vous` : `${name} t’attend`;
-    sub = driver ? `Dépose ${name} à ${m.dropoff_label}, puis termine le trajet` : 'Ton chauffeur est au point de rendez-vous. Bon trajet !';
+    emoji = '🚗';
+    riding = true;
+    title = 'Covoiturage en cours';
+    sub = driver ? `Dépose ${name} à ${m.dropoff_label}, puis termine le trajet` : `Direction ${m.dropoff_label}. Bon trajet !`;
     action = driver ? 'Trajet terminé' : null;
   }
 
   return (
     <div className="live embedded">
       <div className="live-head">
-        <span className="live-emoji">{emoji}</span>
+        <span className={riding ? 'live-emoji riding' : 'live-emoji'}>{emoji}</span>
         <div>
           <strong>{title}</strong>
           <small>{sub}</small>
         </div>
       </div>
 
-      <ol className="steps">
-        {STEP_LABELS.map((label, i) => (
-          <li key={label} className={i < step ? 'done' : i === step ? 'current' : ''}>
-            <span className="dot" />
-            {label}
-          </li>
-        ))}
-      </ol>
+      <TripTracker m={m} meName={meName} />
 
       <div className="contact">
         <div className="avatar">{name.charAt(0).toUpperCase()}</div>

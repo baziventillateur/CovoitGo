@@ -9,6 +9,7 @@ au conducteur, points et badges. Pas de paiement dans le MVP.
   À coller dans le SQL Editor de Supabase. Ne pas exécuter `supabase/tests/` sur un vrai projet.
 - `supabase/migrations/0006_assistance_trajet_en_cours.sql`, `0007_emails.sql` : assistance limitée aux trajets en cours ; e-mails (préférences, déclencheur).
 - `supabase/migrations/0008_prix.sql` : prix conseillé selon la distance, fourchette d'ajustement, prix du passager au prorata.
+- `supabase/migrations/0009_duree_trajet.sql` : durée estimée du trajet, pour le suivi animé.
 - `supabase/functions/send-email/` : fonction Edge qui envoie les e-mails via Resend (trajet confirmé, trajet terminé) et gère le désabonnement.
 - `supabase/templates/` : modèles des e-mails de compte, à coller dans Supabase Auth (`confirmation.html`, `magic_link.html`, `recovery.html`, `email_change.html`). Ils affichent tous le code `{{ .Token }}`, saisi dans l'appli.
 - `supabase/tests/run.sh` : tests de la migration sur un Postgres 16 + PostGIS local jetable.

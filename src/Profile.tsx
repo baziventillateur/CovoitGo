@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
-import { api, type Notify } from './api';
+import { api, type Mode, type Notify } from './api';
 import { ReviewList, UserSheet } from './Reviews';
 import { levelOf } from './levels';
 import { Account } from './Account';
@@ -9,7 +9,7 @@ import { playSound, setSoundsEnabled, soundsEnabled, unlockSounds } from './soun
 
 type Badge = { code: string; label: string; description: string; trips_required: number };
 
-export function Profile({ uid, notify }: { uid: string; notify: Notify }) {
+export function Profile({ uid, notify, mode, onSwitchMode }: { uid: string; notify: Notify; mode: Mode; onSwitchMode: () => void }) {
   const [name, setName] = useState('');
   const [points, setPoints] = useState(0);
   const [phone, setPhone] = useState('');
@@ -71,12 +71,24 @@ export function Profile({ uid, notify }: { uid: string; notify: Notify }) {
         <span className="level">
           {level.emoji} {level.name}
         </span>
-        <div className="points">{points} points</div>
+        <div className="points">⭐ {points} points</div>
         <div className="bar">
           <div style={{ width: `${progress}%` }} />
         </div>
         <small>{next ? `Encore ${next.min - points} points pour devenir « ${next.name} »` : 'Niveau maximum atteint'}</small>
-        <small>Conducteur : +15 points par trajet · Passager : +10 points</small>
+        <small>Les points ne sont pas des euros : ils font monter ton niveau. Conducteur +15, passager +10 par trajet.</small>
+      </div>
+
+      <h3 className="section">Mon mode</h3>
+      <div className="card mode-card">
+        <span className="mode-emoji">{mode === 'driver' ? '🚗' : '🙋'}</span>
+        <span className="contact-info">
+          <strong>Mode {mode === 'driver' ? 'conducteur' : 'passager'}</strong>
+          <small>{mode === 'driver' ? 'Tu proposes des places dans ta voiture.' : 'Tu cherches une place dans une voiture.'}</small>
+        </span>
+        <button className="ghost small" onClick={onSwitchMode}>
+          Changer
+        </button>
       </div>
 
       <h3 className="section">Badges</h3>
