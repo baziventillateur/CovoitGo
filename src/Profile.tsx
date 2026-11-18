@@ -16,6 +16,10 @@ type Badge = { code: string; label: string; description: string; trips_required:
 export function Profile({ uid, notify, mode, onSwitchMode }: { uid: string; notify: Notify; mode: Mode; onSwitchMode: () => void }) {
   const [name, setName] = useState('');
   const [showMoney, setShowMoney] = useState(false);
+  const [detour, setDetour] = useState(15);
+  useEffect(() => {
+    api.maxDetour().then(setDetour).catch(() => {});
+  }, []);
   const [admin, setAdmin] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   useEffect(() => {
@@ -189,6 +193,31 @@ export function Profile({ uid, notify, mode, onSwitchMode }: { uid: string; noti
 
       <h3 className="section">Mon compte</h3>
       <Account notify={notify} />
+
+      {mode === 'driver' && (
+        <>
+          <h3 className="section">Détour maximum</h3>
+          <div className="card form">
+            <div className="card-foot">
+              <span>Pour passer prendre un passager</span>
+              <strong>{detour} min</strong>
+            </div>
+            <input
+              type="range"
+              min={5}
+              max={30}
+              step={1}
+              value={detour}
+              onChange={(e) => setDetour(Number(e.target.value))}
+              onPointerUp={() => api.setMaxDetour(detour).catch((e) => notify((e as Error).message, 'err'))}
+              onKeyUp={() => api.setMaxDetour(detour).catch(() => {})}
+            />
+            <small>
+              On te propose les passagers qui te demandent au plus {detour} min de détour. Entre 5 et 30 min.
+            </small>
+          </div>
+        </>
+      )}
 
       <h3 className="section">Notifications</h3>
       <div className="card form">

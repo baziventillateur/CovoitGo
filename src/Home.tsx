@@ -17,6 +17,7 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
   const [listings, setListings] = useState<Listing[]>([]);
   const [candidates, setCandidates] = useState<Record<string, Candidate[]>>({});
   const [detours, setDetours] = useState<Record<string, number>>({});
+  const [maxDetour, setMaxDetour] = useState(15);
   const [loaded, setLoaded] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -60,6 +61,7 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
       setCandidates(Object.fromEntries(mine.map((l, i) => [l.id, found[i]])));
       // Conducteur : minutes de détour pour chaque passager possible (calculées une fois, puis gardées).
       if (mode === 'driver') {
+        api.maxDetour().then(setMaxDetour).catch(() => {});
         const withFound = mine.filter((_, i) => found[i].length > 0);
         const known = await api.detours(withFound.map((l) => l.id));
         setDetours(known);
@@ -144,11 +146,11 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
         .filter((c) => {
           // Sur la route (à moins d'1 km) : toujours proposé.
           if (c.pickup_m <= 1000 && (c.dropoff_m ?? 0) <= 1000) return true;
-          // Plus loin : côté conducteur, c'est le détour réel qui décide (affiché dès qu'il est calculé) ;
+          // Plus loin : côté conducteur, c'est le détour réel qui décide, jusqu'au maximum qu'il a réglé ;
           // côté passager, le conducteur doit passer à 12 km au plus en cumulé.
           if (!driver) return c.pickup_m + (c.dropoff_m ?? 0) <= 12000;
           const detour = detours[c.trip_id + c.request_id];
-          return detour != null && detour <= Math.min(30, Math.max(8, Math.round((l.duration_min ?? 40) * 0.4)));
+          return detour != null && detour <= maxDetour;
         })
         .sort((a, b) =>
           driver

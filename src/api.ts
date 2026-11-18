@@ -210,6 +210,12 @@ export const api = {
   },
   setPayMethod: (requestId: string, method: 'cash' | 'card') =>
     rpc<void>('set_request_pay_method', { p_request_id: requestId, p_method: method }),
+  // Détour maximum accepté par le conducteur (minutes) : 15 par défaut, entre 5 et 30.
+  async maxDetour(): Promise<number> {
+    const { data } = await supabase.from('driver_settings').select('max_detour_min').maybeSingle();
+    return data?.max_detour_min ?? 15;
+  },
+  setMaxDetour: (minutes: number) => rpc<number>('set_max_detour', { p_minutes: minutes }),
   money: async () => (await rpc<MoneyRow[]>('my_money')) ?? [],
   cancelTrip: (id: string) => rpc<void>('cancel_trip', { p_trip_id: id }),
   pauseTrip: (id: string) => rpc<void>('pause_trip', { p_trip_id: id }),

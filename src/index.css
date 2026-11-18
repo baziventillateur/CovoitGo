@@ -541,3 +541,6 @@ nav button span { font-size: 1.65rem; line-height: 1.1; }
 .admin-days em { position: absolute; bottom: 0; font-style: normal; font-size: 0.6rem; color: var(--muted); }
 .admin .money-list li > small { white-space: nowrap; }
 .admin .money-list div small { display: block; }
+
+/* Curseur du détour maximum */
+input[type='range'] { width: 100%; padding: 0; accent-color: var(--brand); touch-action: pan-y; }

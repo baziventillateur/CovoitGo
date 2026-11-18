@@ -486,4 +486,11 @@ begin
   perform propose_match(v_trip, v_req);
 end $$;
 
+-- Détour maximum : borné entre 5 et 30 minutes.
+do $$ begin
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
+  if set_max_detour(2) <> 5 or set_max_detour(90) <> 30 or set_max_detour(20) <> 20 then raise exception 'ECHEC bornes du détour'; end if;
+  if (select max_detour_min from driver_settings where user_id = '00000000-0000-0000-0000-000000000001') <> 20 then raise exception 'ECHEC détour enregistré'; end if;
+end $$;
+
 \echo 'TOUS LES TESTS PASSENT'
