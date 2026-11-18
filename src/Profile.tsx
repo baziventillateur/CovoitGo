@@ -5,6 +5,7 @@ import { ReviewList, UserSheet } from './Reviews';
 import { levelOf } from './levels';
 import { Account } from './Account';
 import { Money } from './Money';
+import { Admin } from './Admin';
 import { Wallet } from './Wallet';
 import { SUPPORT_URL } from './Assistance';
 import { disablePush, enablePush, pushEnabled } from './push';
@@ -15,6 +16,11 @@ type Badge = { code: string; label: string; description: string; trips_required:
 export function Profile({ uid, notify, mode, onSwitchMode }: { uid: string; notify: Notify; mode: Mode; onSwitchMode: () => void }) {
   const [name, setName] = useState('');
   const [showMoney, setShowMoney] = useState(false);
+  const [admin, setAdmin] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
+  useEffect(() => {
+    supabase.rpc('is_admin').then(({ data }) => setAdmin(data === true));
+  }, []);
   const [showWallet, setShowWallet] = useState(() => new URLSearchParams(window.location.search).has('versement'));
   const [points, setPoints] = useState(0);
   const [phone, setPhone] = useState('');
@@ -149,6 +155,14 @@ export function Profile({ uid, notify, mode, onSwitchMode }: { uid: string; noti
           Enregistrer
         </button>
       </div>
+
+      {admin && (
+        <button className="card money-entry" onClick={() => setShowAdmin(true)}>
+          <span>🛠 Panel admin</span>
+          <span>›</span>
+        </button>
+      )}
+      {showAdmin && <Admin onClose={() => setShowAdmin(false)} />}
 
       <h3 className="section">Mes comptes</h3>
       <button className="card money-entry" onClick={() => setShowMoney(true)}>

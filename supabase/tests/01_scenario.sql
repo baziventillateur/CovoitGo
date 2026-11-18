@@ -450,4 +450,24 @@ begin
   if (select coalesce(sum(cents), 0) from wallet_entries where user_id = d) - v_before <> -v_fee then raise exception 'ECHEC frais en espèces'; end if;
 end $$;
 
+-- Panel admin : fermé aux autres, ouvert à l'admin.
+insert into admins values ('00000000-0000-0000-0000-000000000001');
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+do $$ begin
+  if is_admin() then raise exception 'ECHEC : admin pour tout le monde'; end if;
+  begin perform admin_overview(); raise exception 'ECHEC : vue admin ouverte';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; end;
+  begin perform count(*) from admin_users(); raise exception 'ECHEC : liste des comptes ouverte';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; end;
+  perform touch_seen(true);
+end $$;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
+do $$ begin
+  if (admin_overview() ->> 'users_total')::int < 2 or (admin_overview() ->> 'installed')::int <> 1 then raise exception 'ECHEC indicateurs admin'; end if;
+  if (select count(*) from admin_users('', 50)) < 2 then raise exception 'ECHEC liste des comptes'; end if;
+  if (select count(*) from admin_activity('termine', 50)) < 1 or (select count(*) from admin_activity(null, 300)) < 5 then raise exception 'ECHEC journal'; end if;
+end $$;
+reset role;
+
 \echo 'TOUS LES TESTS PASSENT'

@@ -518,3 +518,26 @@ nav button span { font-size: 1.65rem; line-height: 1.1; }
 /* Paiement */
 .you-get { color: var(--brand); }
 .wait-pay { display: block; text-align: center; color: #92400e; background: #fef3c7; padding: 0.4rem 0.6rem; border-radius: 9px; font-size: 0.8rem; }
+
+/* Panel admin */
+.admin { display: grid; gap: 0.5rem; max-height: 94dvh; align-content: start; }
+.admin-tabs, .admin-filters { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 0.15rem; }
+.admin-tabs::-webkit-scrollbar, .admin-filters::-webkit-scrollbar { display: none; }
+.admin-tabs .chip, .admin-filters .chip { flex: none; }
+.admin-filters .chip { font-size: 0.76rem; padding: 0.25rem 0.55rem; }
+.admin .section { margin: 0.3rem 0 0; }
+.kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem; }
+.kpi { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 0.45rem 0.6rem; display: grid; gap: 0.05rem; }
+.kpi small { color: var(--muted); font-size: 0.72rem; }
+.kpi strong { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.kpi em { font-style: normal; font-size: 0.7rem; color: var(--muted); }
+.kpi.good strong { color: #15803d; }
+.kpi.warn strong { color: #b45309; }
+.admin-days { display: grid; grid-template-columns: repeat(14, 1fr); gap: 0.2rem; height: 5rem; align-items: end; }
+.admin-days > div { display: flex; align-items: flex-end; justify-content: center; gap: 1px; height: 100%; position: relative; padding-bottom: 0.9rem; }
+.admin-days i { width: 40%; min-height: 2px; border-radius: 3px 3px 0 0; }
+.admin-days i.a { background: #94a3b8; }
+.admin-days i.b { background: #15803d; }
+.admin-days em { position: absolute; bottom: 0; font-style: normal; font-size: 0.6rem; color: var(--muted); }
+.admin .money-list li > small { white-space: nowrap; }
+.admin .money-list div small { display: block; }

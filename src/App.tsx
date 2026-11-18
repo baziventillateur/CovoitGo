@@ -111,6 +111,13 @@ export default function App() {
     }
   }, [notify]);
 
+  // Dernière visite, et appli installée ou non sur l'écran d'accueil (pour les indicateurs).
+  useEffect(() => {
+    if (!uid) return;
+    const installed = window.matchMedia('(display-mode: standalone)').matches;
+    supabase.rpc('touch_seen', { p_installed: installed }).then(() => {});
+  }, [uid]);
+
   useEffect(() => {
     if (!uid) return;
     lastNotifId.current = 0;
