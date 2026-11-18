@@ -25,7 +25,9 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
   const [mode, setModeState] = useState<Mode | null>(savedMode);
-  const [tab, setTab] = useState<'home' | 'profile'>('home');
+  const [tab, setTab] = useState<'home' | 'profile'>(() =>
+    new URLSearchParams(window.location.search).has('versement') ? 'profile' : 'home',
+  );
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const [showNotifs, setShowNotifs] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);

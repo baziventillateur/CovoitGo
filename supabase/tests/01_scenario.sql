@@ -372,4 +372,27 @@ do $$ begin
 end $$;
 reset role;
 
+-- Porte-monnaie : retrait refusé sans RIB ou sous 25 €, puis accepté ; annulation si Stripe échoue.
+do $$
+declare u uuid := '00000000-0000-0000-0000-000000000001'; v_id bigint; v_c int;
+begin
+  insert into wallet_entries (user_id, kind, cents) values (u, 'ride', 3000);
+  begin perform wallet_withdraw_reserve(u); raise exception 'ECHEC : retrait sans RIB';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; end;
+  perform payout_account_save(u, 'acct_test_1', true, true);
+  insert into wallet_entries (user_id, kind, cents) values (u, 'cash_fee', -1000);
+  begin perform wallet_withdraw_reserve(u); raise exception 'ECHEC : retrait sous 25 €';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; end;
+  insert into wallet_entries (user_id, kind, cents) values (u, 'ride', 1500);
+  select entry_id, cents into v_id, v_c from wallet_withdraw_reserve(u);
+  if v_c <> 3500 then raise exception 'ECHEC : montant retiré %', v_c; end if;
+  perform wallet_withdraw_cancel(v_id);
+  if (select coalesce(sum(cents),0) from wallet_entries where user_id = u) <> 3500 then raise exception 'ECHEC : annulation du retrait'; end if;
+  select entry_id into v_id from wallet_withdraw_reserve(u);
+  perform wallet_withdraw_confirm(v_id, 'tr_test');
+  perform wallet_withdraw_cancel(v_id);
+  if (select coalesce(sum(cents),0) from wallet_entries where user_id = u) <> 0 then raise exception 'ECHEC : retrait confirmé annulable'; end if;
+  if has_table_privilege('authenticated', 'wallet_entries', 'insert') then raise exception 'ECHEC : porte-monnaie modifiable par l''appli'; end if;
+end $$;
+
 \echo 'TOUS LES TESTS PASSENT'

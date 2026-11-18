@@ -5,6 +5,7 @@ import { ReviewList, UserSheet } from './Reviews';
 import { levelOf } from './levels';
 import { Account } from './Account';
 import { Money } from './Money';
+import { Wallet } from './Wallet';
 import { SUPPORT_URL } from './Assistance';
 import { disablePush, enablePush, pushEnabled } from './push';
 import { playSound, setSoundsEnabled, soundsEnabled, unlockSounds } from './sounds';
@@ -14,6 +15,7 @@ type Badge = { code: string; label: string; description: string; trips_required:
 export function Profile({ uid, notify, mode, onSwitchMode }: { uid: string; notify: Notify; mode: Mode; onSwitchMode: () => void }) {
   const [name, setName] = useState('');
   const [showMoney, setShowMoney] = useState(false);
+  const [showWallet, setShowWallet] = useState(() => new URLSearchParams(window.location.search).has('versement'));
   const [points, setPoints] = useState(0);
   const [phone, setPhone] = useState('');
   const [car, setCar] = useState({ model: '', color: '', plate: '' });
@@ -154,6 +156,22 @@ export function Profile({ uid, notify, mode, onSwitchMode }: { uid: string; noti
         <span>›</span>
       </button>
       {showMoney && <Money mode={mode} onClose={() => setShowMoney(false)} />}
+      {mode === 'driver' && (
+        <button className="card money-entry" onClick={() => setShowWallet(true)}>
+          <span>👛 Mon porte-monnaie et mes retraits</span>
+          <span>›</span>
+        </button>
+      )}
+      {showWallet && (
+        <Wallet
+          notify={notify}
+          onClose={() => {
+            // Au retour de Stripe, l'adresse garde un repère : on le retire.
+            window.history.replaceState(null, '', window.location.pathname);
+            setShowWallet(false);
+          }}
+        />
+      )}
 
       <h3 className="section">Mon compte</h3>
       <Account notify={notify} />
