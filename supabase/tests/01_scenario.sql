@@ -493,4 +493,23 @@ do $$ begin
   if (select max_detour_min from driver_settings where user_id = '00000000-0000-0000-0000-000000000001') <> 20 then raise exception 'ECHEC détour enregistré'; end if;
 end $$;
 
+-- Carte du passager : approximative pour un simple candidat, exacte une fois la proposition faite, fermée aux autres.
+do $$
+declare d uuid := '00000000-0000-0000-0000-000000000001'; p uuid := '00000000-0000-0000-0000-00000000000a';
+        v_trip uuid; v_req uuid; r record;
+begin
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  v_trip := publish_trip('Tours', 0.6848, 47.3941, 'Amboise', 0.9824, 47.4133, now() + interval '3 days', now() + interval '3 days 2 hours', 3, 0);
+  perform set_config('request.jwt.claim.sub', p::text, false);
+  v_req := publish_request('Tours', 0.68731, 47.39382, 'Amboise', 0.98117, 47.41291, now() + interval '3 days', now() + interval '3 days 2 hours');
+  begin perform request_map(v_trip, v_req); raise exception 'ECHEC : carte ouverte au passager';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; end;
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  select * into r from request_map(v_trip, v_req);
+  if r.exact or abs(r.a_lng - 0.68731) < 0.00001 or r.trip_route is null then raise exception 'ECHEC : carte du candidat trop précise'; end if;
+  perform propose_match(v_trip, v_req);
+  select * into r from request_map(v_trip, v_req);
+  if not r.exact or abs(r.a_lng - 0.68731) > 0.00001 then raise exception 'ECHEC : carte exacte après proposition'; end if;
+end $$;
+
 \echo 'TOUS LES TESTS PASSENT'

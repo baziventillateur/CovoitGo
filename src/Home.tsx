@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, type Candidate, type EditTrip, type Listing, type Match, type Mode, type Notify } from './api';
 import { TrafficTag } from './Traffic';
+import { RouteMap } from './RouteMap';
 import { MatchCard } from './MatchCard';
 import { PublishForm } from './PublishForm';
 import { euros, fmt, fmtDuration, fmtTime } from './format';
@@ -18,6 +19,7 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
   const [candidates, setCandidates] = useState<Record<string, Candidate[]>>({});
   const [detours, setDetours] = useState<Record<string, number>>({});
   const [maxDetour, setMaxDetour] = useState(15);
+  const [mapFor, setMapFor] = useState<{ tripId: string; requestId: string; name: string } | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -224,6 +226,11 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
               {driver && m.note && <small className="note">« {m.note} »</small>}
             </button>
           </div>
+          {driver && (
+            <button className="link map-link" onClick={() => setMapFor({ tripId: m.trip_id, requestId: m.request_id, name: m.other_name })}>
+              🗺 Voir son trajet sur la carte
+            </button>
+          )}
           <div className="row2">
             <button className="primary" disabled={busy} onClick={() => run(() => api.respond(m.id, true), 'Trajet confirmé !', '🤝')}>
               Accepter
@@ -373,6 +380,11 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
                       {driver ? 'Proposer' : 'Demander'}
                     </button>
                   </div>
+                  {driver && (
+                    <button className="link map-link" onClick={() => setMapFor({ tripId: c.trip_id, requestId: c.request_id, name: c.name })}>
+                      🗺 Voir son trajet sur la carte
+                    </button>
+                  )}
                 </div>
               ))}
 
@@ -485,6 +497,7 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
             </div>
           );
         })()}
+      {mapFor && <RouteMap {...mapFor} onClose={() => setMapFor(null)} />}
       {helpFor && <Assistance m={helpFor} notify={notify} onClose={() => setHelpFor(null)} />}
       {viewUser && <UserSheet userId={viewUser.id} name={viewUser.name} onClose={() => setViewUser(null)} />}
     </>
