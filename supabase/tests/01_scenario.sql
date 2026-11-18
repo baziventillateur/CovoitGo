@@ -512,4 +512,39 @@ begin
   if not r.exact or abs(r.a_lng - 0.68731) > 0.00001 then raise exception 'ECHEC : carte exacte après proposition'; end if;
 end $$;
 
+-- Admin : barèmes réglables (bornés), suspension d'un compte.
+set role authenticated;
+do $$
+declare d uuid := '00000000-0000-0000-0000-000000000001'; p uuid := '00000000-0000-0000-0000-00000000000a'; v_before int;
+begin
+  perform set_config('request.jwt.claim.sub', p::text, false);
+  begin perform admin_set_pricing('{"fee_fixed": 0}'); raise exception 'ECHEC : barème ouvert à tous';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; end;
+  begin perform admin_set_block(d, true, 'x'); raise exception 'ECHEC : suspension ouverte à tous';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; end;
+
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  v_before := price_for_km(45.5);
+  if v_before <> 1800 or service_fee(1800) <> 125 then raise exception 'ECHEC : barème par défaut modifié (%)', v_before; end if;
+  perform admin_set_pricing('{"fee_fixed": 50, "fee_percent": 10, "km_mid": 40}');
+  if service_fee(1800) <> 230 or price_for_km(45.5) <= v_before then raise exception 'ECHEC : nouveau barème non appliqué'; end if;
+  begin perform admin_set_pricing('{"fee_percent": 80}'); raise exception 'ECHEC : frais hors bornes acceptés';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; end;
+  perform admin_set_pricing('{"fee_fixed": 35, "fee_percent": 5, "km_mid": 34}');
+
+  begin perform admin_set_block(d, true, 'x'); raise exception 'ECHEC : admin suspendu';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; end;
+  perform admin_set_block(p, true, 'test');
+  perform set_config('request.jwt.claim.sub', p::text, false);
+  begin perform publish_request('Dijon', 5.0415, 47.3220, 'Chenôve', 5.0080, 47.2910, now() + interval '5 days', now() + interval '5 days 1 hour');
+    raise exception 'ECHEC : compte suspendu actif';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; end;
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  if (select count(*) from admin_blocked()) <> 1 then raise exception 'ECHEC liste des suspendus'; end if;
+  perform admin_set_block(p, false);
+  perform set_config('request.jwt.claim.sub', p::text, false);
+  perform publish_request('Dijon', 5.0415, 47.3220, 'Chenôve', 5.0080, 47.2910, now() + interval '5 days', now() + interval '5 days 1 hour');
+end $$;
+reset role;
+
 \echo 'TOUS LES TESTS PASSENT'

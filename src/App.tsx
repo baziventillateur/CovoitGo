@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { feeConfig } from './format';
 import { api, type Mode, type Notification, type Notify } from './api';
 import { Auth } from './Auth';
 import { Home } from './Home';
@@ -116,6 +117,14 @@ export default function App() {
     if (!uid) return;
     const installed = window.matchMedia('(display-mode: standalone)').matches;
     supabase.rpc('touch_seen', { p_installed: installed }).then(() => {});
+    // Barème des frais de service en vigueur.
+    supabase
+      .from('pricing_settings')
+      .select('fee_fixed,fee_percent')
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) Object.assign(feeConfig, { fixed: data.fee_fixed, percent: Number(data.fee_percent) });
+      });
   }, [uid]);
 
   useEffect(() => {

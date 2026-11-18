@@ -35,5 +35,8 @@ export function fmtDuration(minutes: number): string {
   return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`;
 }
 
-// Frais de service : 0,35 € + 5 %, arrondis à 5 centimes (même calcul que la base).
-export const serviceFee = (cents: number) => (cents <= 0 ? 0 : Math.min(cents, Math.round((35 + 0.05 * cents) / 5) * 5));
+// Frais de service : part fixe + pourcentage, arrondis à 5 centimes (même calcul que la base).
+// Les valeurs sont réglables dans le panel admin et chargées à l'ouverture de l'appli.
+export const feeConfig = { fixed: 35, percent: 5 };
+export const serviceFee = (cents: number) =>
+  cents <= 0 ? 0 : Math.min(cents, Math.round((feeConfig.fixed + (feeConfig.percent / 100) * cents) / 5) * 5);

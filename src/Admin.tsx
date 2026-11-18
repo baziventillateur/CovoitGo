@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
 import { ago, euros } from './format';
 
-type Tab = 'vue' | 'clients' | 'activite' | 'argent' | 'plus';
+type Tab = 'vue' | 'clients' | 'activite' | 'argent' | 'reglages' | 'plus';
 type User = {
   user_id: string; name: string; email: string; created_at: string; last_seen_at: string | null;
   installed: boolean; trips: number; requests: number; completed: number; rating: number | null; wallet_cents: number;
@@ -45,6 +45,36 @@ export function Admin({ onClose }: { onClose: () => void }) {
   const [events, setEvents] = useState<Event[]>([]);
   const [kind, setKind] = useState('');
   const [error, setError] = useState('');
+  const [blocked, setBlocked] = useState<Record<string, string>>({});
+  const [pricing, setPricing] = useState<Record<string, number> | null>(null);
+  const [saved, setSaved] = useState('');
+
+  const loadBlocked = () =>
+    supabase.rpc('admin_blocked').then(({ data }) => setBlocked(Object.fromEntries((data ?? []).map((b: any) => [b.user_id, b.reason]))));
+  useEffect(() => {
+    if (tab === 'clients') loadBlocked();
+    if (tab === 'reglages' && !pricing) {
+      supabase.from('pricing_settings').select('*').maybeSingle().then(({ data }) => data && setPricing({ ...data, fee_percent: Number(data.fee_percent) }));
+    }
+  }, [tab, pricing]);
+
+  async function toggleBlock(u: User) {
+    const isBlocked = u.user_id in blocked;
+    if (!isBlocked && !window.confirm(`Suspendre ${u.name} ? Ses annonces sont retirées et il ne peut plus rien publier ni accepter.`)) return;
+    const { error } = await supabase.rpc('admin_set_block', { p_user: u.user_id, p_blocked: !isBlocked, p_reason: '' });
+    if (error) return setError(error.message);
+    loadBlocked();
+  }
+
+  async function savePricing() {
+    const { error } = await supabase.rpc('admin_set_pricing', { p: pricing });
+    setSaved(error ? error.message : 'Enregistré. Les nouveaux trajets utilisent ces valeurs.');
+  }
+  const price = (km: number) =>
+    pricing
+      ? Math.max(pricing.price_min, Math.round((pricing.price_base + pricing.km_short * Math.min(km, 20) + pricing.km_mid * Math.min(Math.max(km - 20, 0), 40) + pricing.km_long * Math.max(km - 60, 0)) / 50) * 50)
+      : 0;
+  const fee = (cents: number) => (pricing ? Math.min(cents, Math.round((pricing.fee_fixed + (pricing.fee_percent / 100) * cents) / 5) * 5) : 0);
 
   useEffect(() => {
     supabase.rpc('admin_overview').then(({ data, error }) => (error ? setError(error.message) : setO(data)));
@@ -74,7 +104,7 @@ export function Admin({ onClose }: { onClose: () => void }) {
           </button>
         </div>
         <div className="chips admin-tabs">
-          {([['vue', 'Vue d’ensemble'], ['clients', 'Clients'], ['activite', 'Activité'], ['argent', 'Argent'], ['plus', 'À venir']] as [Tab, string][]).map(([t, l]) => (
+          {([['vue', 'Vue d’ensemble'], ['clients', 'Clients'], ['activite', 'Activité'], ['argent', 'Argent'], ['reglages', 'Réglages'], ['plus', 'À venir']] as [Tab, string][]).map(([t, l]) => (
             <button key={t} className={tab === t ? 'chip on' : 'chip'} onClick={() => setTab(t)}>
               {l}
             </button>
@@ -137,7 +167,12 @@ export function Admin({ onClose }: { onClose: () => void }) {
                       Inscrit {ago(u.created_at)} · {u.last_seen_at ? `vu ${ago(u.last_seen_at)}` : 'pas revu'} · {u.trips} trajet(s), {u.requests} demande(s), {u.completed} terminé(s)
                     </small>
                   </div>
-                  {u.wallet_cents !== 0 && <b className={u.wallet_cents < 0 ? 'minus' : ''}>{euros(u.wallet_cents)}</b>}
+                  <span className="admin-side">
+                    {u.wallet_cents !== 0 && <b className={u.wallet_cents < 0 ? 'minus' : ''}>{euros(u.wallet_cents)}</b>}
+                    <button className={u.user_id in blocked ? 'chip on warn' : 'chip'} onClick={() => toggleBlock(u)}>
+                      {u.user_id in blocked ? 'Suspendu · réactiver' : 'Suspendre'}
+                    </button>
+                  </span>
                 </li>
               ))}
             </ul>
@@ -186,9 +221,48 @@ export function Admin({ onClose }: { onClose: () => void }) {
           </>
         )}
 
+        {tab === 'reglages' && pricing && (
+          <>
+            <h3 className="section">Prix conseillé d’un trajet</h3>
+            <div className="admin-form">
+              {([
+                ['price_base', 'Part fixe (centimes)'],
+                ['km_short', 'Par km, de 0 à 20 km (centimes)'],
+                ['km_mid', 'Par km, de 20 à 60 km (centimes)'],
+                ['km_long', 'Par km, au-delà de 60 km (centimes)'],
+                ['price_min', 'Prix minimum (centimes)'],
+              ] as [string, string][]).map(([k, l]) => (
+                <label key={k}>
+                  {l}
+                  <input type="number" inputMode="numeric" value={pricing[k]} onChange={(e) => setPricing({ ...pricing, [k]: Number(e.target.value) })} />
+                </label>
+              ))}
+            </div>
+            <h3 className="section">Frais de service</h3>
+            <div className="admin-form">
+              <label>
+                Part fixe (centimes)
+                <input type="number" inputMode="numeric" value={pricing.fee_fixed} onChange={(e) => setPricing({ ...pricing, fee_fixed: Number(e.target.value) })} />
+              </label>
+              <label>
+                Pourcentage du prix (%)
+                <input type="number" inputMode="decimal" step="0.5" value={pricing.fee_percent} onChange={(e) => setPricing({ ...pricing, fee_percent: Number(e.target.value) })} />
+              </label>
+            </div>
+            <small className="money-note">
+              Aperçu : 5 km → {euros(price(5))} (frais {euros(fee(price(5)))}) · 20 km → {euros(price(20))} (frais {euros(fee(price(20)))}) · 45 km → {euros(price(45.5))} (frais {euros(fee(price(45.5)))}) · 100 km → {euros(price(100))} (frais {euros(fee(price(100)))})
+            </small>
+            <button className="primary big" onClick={savePricing}>
+              Enregistrer les barèmes
+            </button>
+            {saved && <small className="money-note">{saved}</small>}
+            <small className="money-note">Les trajets déjà publiés et les mises en relation existantes gardent leurs prix et leurs frais.</small>
+          </>
+        )}
+
         {tab === 'plus' && (
           <ul className="money-list">
-            {['Traiter les réclamations et répondre', 'Suspendre ou bannir un compte', 'Codes promo et parrainage', 'Rembourser un trajet à la main', 'Régler le barème des prix et des frais', 'Exporter en tableur'].map((t) => (
+            {['Traiter les réclamations et répondre', 'Codes promo et parrainage', 'Rembourser un trajet à la main', 'Exporter en tableur'].map((t) => (
               <li key={t}>
                 <div>
                   <strong>{t}</strong>

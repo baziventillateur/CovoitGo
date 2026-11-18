@@ -554,3 +554,10 @@ input[type='range'] { width: 100%; padding: 0; accent-color: var(--brand); touch
 .leg-line.mine { border-top: 3px dashed #64748b; }
 .leg-dot { display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 50%; background: #2563eb; margin-left: 0.3rem; }
 .map-link { align-self: start; font-size: 0.78rem; padding: 0.1rem 0; }
+
+/* Admin : réglages et suspension */
+.admin-form { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+.admin-form label { font-size: 0.74rem; }
+.admin-side { display: grid; gap: 0.2rem; justify-items: end; }
+.admin-side .chip { font-size: 0.7rem; padding: 0.2rem 0.5rem; }
+.chip.on.warn { background: #b45309; border-color: #b45309; }
