@@ -78,6 +78,7 @@ export type Candidate = {
   dest_label: string;
   overlap_start: string;
   pickup_m: number;
+  dropoff_m?: number;
   shared_km: number;
   seats_left?: number;
   cost_share_cents?: number;
@@ -293,10 +294,10 @@ export const api = {
 
   async candidates(mode: Mode, listingId: string): Promise<Candidate[]> {
     if (mode === 'driver') {
-      const rows = await rpc<any[]>('find_requests_for_trip', { p_trip_id: listingId, p_radius_m: 1000 });
+      const rows = await rpc<any[]>('find_requests_for_trip', { p_trip_id: listingId, p_radius_m: 12000 });
       return (rows ?? []).map((r) => ({ ...r, trip_id: listingId, name: r.passenger_name }));
     }
-    const rows = await rpc<any[]>('find_trips_for_request', { p_request_id: listingId, p_radius_m: 1000 });
+    const rows = await rpc<any[]>('find_trips_for_request', { p_request_id: listingId, p_radius_m: 12000 });
     return (rows ?? []).map((r) => ({ ...r, request_id: listingId, name: r.driver_name }));
   },
 };

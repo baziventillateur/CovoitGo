@@ -470,4 +470,20 @@ do $$ begin
 end $$;
 reset role;
 
+-- Passager à quelques kilomètres de la route : trouvé avec le rayon large, pas avec le rayon étroit.
+do $$
+declare d uuid := '00000000-0000-0000-0000-000000000001'; p uuid := '00000000-0000-0000-0000-00000000000a';
+        v_trip uuid; v_req uuid;
+begin
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  v_trip := publish_trip('Épône', 1.8167, 48.9547, 'Paris', 2.3522, 48.8566, now() + interval '2 days', now() + interval '2 days 2 hours', 3, 0);
+  perform set_config('request.jwt.claim.sub', p::text, false);
+  v_req := publish_request('Épône', 1.8180, 48.9545, 'Argenteuil', 2.2470, 48.9472, now() + interval '2 days', now() + interval '2 days 2 hours');
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  if exists (select 1 from find_requests_for_trip(v_trip, 1000) where request_id = v_req) then raise exception 'ECHEC : trouvé dans le rayon étroit'; end if;
+  if not exists (select 1 from find_requests_for_trip(v_trip, 12000) where request_id = v_req) then raise exception 'ECHEC : passager sur la route non trouvé'; end if;
+  if (select count(*) from traffic_detour_inputs(v_trip, d, array[v_req])) <> 1 then raise exception 'ECHEC : détour non calculable'; end if;
+  perform propose_match(v_trip, v_req);
+end $$;
+
 \echo 'TOUS LES TESTS PASSENT'

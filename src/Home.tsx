@@ -139,7 +139,22 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
     .map((l) => ({
       l,
       mine: active.filter((m) => listingOf(m) === l.id),
-      found: (candidates[l.id] ?? []).filter((c) => !paired.has(c.trip_id + c.request_id)),
+      found: (candidates[l.id] ?? [])
+        .filter((c) => !paired.has(c.trip_id + c.request_id))
+        .filter((c) => {
+          // Sur la route (à moins d'1 km) : toujours proposé.
+          if (c.pickup_m <= 1000 && (c.dropoff_m ?? 0) <= 1000) return true;
+          // Plus loin : côté conducteur, c'est le détour réel qui décide (affiché dès qu'il est calculé) ;
+          // côté passager, le conducteur doit passer à 12 km au plus en cumulé.
+          if (!driver) return c.pickup_m + (c.dropoff_m ?? 0) <= 12000;
+          const detour = detours[c.trip_id + c.request_id];
+          return detour != null && detour <= Math.min(30, Math.max(8, Math.round((l.duration_min ?? 40) * 0.4)));
+        })
+        .sort((a, b) =>
+          driver
+            ? (detours[a.trip_id + a.request_id] ?? 0) - (detours[b.trip_id + b.request_id] ?? 0)
+            : a.pickup_m + (a.dropoff_m ?? 0) - (b.pickup_m + (b.dropoff_m ?? 0)),
+        ),
     }))
     // Une annonce dont le créneau est passé ne reste affichée que s'il s'y passe encore quelque chose.
     .filter((f) => f.mine.length > 0 || new Date(f.l.window_end).getTime() > now);
@@ -343,6 +358,7 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
                                 ? 'sur ta route, sans détour'
                                 : `détour ≈ ${detours[c.trip_id + c.request_id]} min`)
                           : `${c.seats_left} place(s)`}
+                        {!driver && (c.pickup_m > 1000 || (c.dropoff_m ?? 0) > 1000) && ' · petit détour pour le chauffeur'}
                         {!driver && (c.cost_share_cents ?? 0) > 0 && ` · ${euros(c.cost_share_cents!)}`}
                       </small>
                       {driver && c.note && <small className="note">« {c.note} »</small>}
