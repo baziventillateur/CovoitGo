@@ -305,4 +305,60 @@ begin
   if (select status from trips where id = v_new) <> 'cancelled' then raise exception 'ECHEC suppression'; end if;
 end $$;
 
+-- Détour, approche du chauffeur, abonnement aux notifications.
+reset role;
+do $$
+declare v_trip uuid; v_req uuid; v_match uuid; v_d int; v_n int;
+begin
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
+  v_trip := publish_trip('Nantes', -1.5536, 47.2184, 'Rezé', -1.5490, 47.1810,
+                         now() + interval '20 minutes', now() + interval '2 hours', 3, 0);
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+  v_req := publish_request('Nantes centre', -1.5530, 47.2150, 'Rezé', -1.5492, 47.1815,
+                           now() + interval '20 minutes', now() + interval '2 hours');
+  v_match := propose_match(v_trip, v_req);
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
+  perform respond_match(v_match, true);
+
+  if driver_ping(v_match, -1.5530, 47.2150) is not null then raise exception 'ECHEC approche : acceptée avant le départ'; end if;
+  perform advance_match(v_match);
+  v_d := driver_ping(v_match, -1.60, 47.25);
+  if v_d is null or v_d < 3000 then raise exception 'ECHEC approche : distance %', v_d; end if;
+  if (select count(*) from notifications where match_id = v_match and kind = 'near') <> 0 then raise exception 'ECHEC approche : alerte trop tôt'; end if;
+  update matches set driver_seen_at = null where id = v_match;
+  perform driver_ping(v_match, -1.5531, 47.2151);
+  update matches set driver_seen_at = null where id = v_match;
+  perform driver_ping(v_match, -1.5531, 47.2151);
+  select count(*) into v_n from notifications where match_id = v_match and kind = 'near';
+  if v_n <> 1 then raise exception 'ECHEC approche : % alerte(s) au lieu d''une', v_n; end if;
+
+  perform save_push_subscription('https://fcm.googleapis.com/fcm/send/abc', repeat('k', 87), repeat('a', 22));
+  perform save_push_subscription('https://fcm.googleapis.com/fcm/send/abc', repeat('k', 87), repeat('b', 22));
+  if (select count(*) from push_subscriptions) <> 1 then raise exception 'ECHEC abonnement en double'; end if;
+  begin perform save_push_subscription('http://exemple.test/x', repeat('k', 87), repeat('a', 22));
+    raise exception 'ECHEC : abonnement invalide accepté';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; end;
+  perform remove_push_subscription('https://fcm.googleapis.com/fcm/send/abc');
+  if (select count(*) from push_subscriptions) <> 0 then raise exception 'ECHEC désabonnement'; end if;
+  if has_function_privilege('authenticated', 'traffic_detour_save(uuid,uuid,integer)', 'execute') then
+    raise exception 'ECHEC : enregistrement de détour ouvert à l''appli';
+  end if;
+end $$;
+do $$
+declare v_trip uuid; v_driver uuid; v_req uuid; v_n int;
+begin
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
+  v_trip := publish_trip('Lille', 3.0573, 50.6292, 'Roubaix', 3.1746, 50.6927, now() + interval '1 day', now() + interval '1 day 2 hours', 3, 0);
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+  v_req := publish_request('Lille', 3.0600, 50.6300, 'Roubaix', 3.1740, 50.6920, now() + interval '1 day', now() + interval '1 day 2 hours');
+  select count(*) into v_n from traffic_detour_inputs(v_trip, '00000000-0000-0000-0000-000000000001', array[v_req]);
+  if v_n <> 1 then raise exception 'ECHEC détour : % ligne(s)', v_n; end if;
+  perform traffic_detour_save(v_trip, v_req, 7);
+  select count(*) into v_n from traffic_detour_inputs(v_trip, '00000000-0000-0000-0000-000000000001', array[v_req]);
+  if v_n <> 0 then raise exception 'ECHEC détour : recalcul inutile'; end if;
+  begin perform traffic_detour_inputs(v_trip, '00000000-0000-0000-0000-00000000000a', array[v_req]);
+    raise exception 'ECHEC détour : trajet d''un autre accepté';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; end;
+end $$;
+
 \echo 'TOUS LES TESTS PASSENT'

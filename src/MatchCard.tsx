@@ -4,6 +4,7 @@ import { euros, fmt, fmtDuration } from './format';
 import { Rating } from './Reviews';
 import { TripTracker } from './TripTracker';
 import { TrafficTag } from './Traffic';
+import { Approach } from './Approach';
 
 type Props = { m: Match; busy: boolean; onAdvance: () => void; onCancel: () => void; onUser: () => void; onHelp: () => void; meName: string };
 
@@ -21,7 +22,9 @@ export function MatchCard({ m, busy, onAdvance, onCancel, onUser, onHelp, meName
   if (m.stage === 'driver_en_route') {
     emoji = '🚗';
     title = driver ? `Va chercher ${name}` : `${name} arrive !`;
-    sub = driver ? m.pickup_label : 'Prépare-toi, ton chauffeur est en route';
+    const fresh = m.driver_seen_at && Date.now() - new Date(m.driver_seen_at).getTime() < 3 * 60_000;
+    const km = m.driver_distance_m != null ? (m.driver_distance_m < 950 ? `${Math.round(m.driver_distance_m / 50) * 50} m` : `${(m.driver_distance_m / 1000).toFixed(1).replace('.', ',')} km`) : null;
+    sub = driver ? m.pickup_label : fresh && km ? `Ton chauffeur est à ${km} du rendez-vous` : 'Prépare-toi, ton chauffeur est en route';
     action = driver ? 'Je suis arrivé' : null;
   } else if (m.stage === 'driver_arrived' || m.stage === 'on_board') {
     emoji = '🚗';
@@ -42,6 +45,7 @@ export function MatchCard({ m, busy, onAdvance, onCancel, onUser, onHelp, meName
       </div>
 
       <TripTracker m={m} meName={meName} />
+      {driver && m.stage === 'driver_en_route' && <Approach matchId={m.id} name={name} />}
 
       <div className="contact">
         <div className="avatar">{name.charAt(0).toUpperCase()}</div>

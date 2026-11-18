@@ -16,6 +16,7 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
   const [matches, setMatches] = useState<Match[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [candidates, setCandidates] = useState<Record<string, Candidate[]>>({});
+  const [detours, setDetours] = useState<Record<string, number>>({});
   const [loaded, setLoaded] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -46,6 +47,22 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
       setMatches(all.filter((m) => m.role === mode));
       setListings(mine);
       setCandidates(Object.fromEntries(mine.map((l, i) => [l.id, found[i]])));
+      // Conducteur : minutes de détour pour chaque passager possible (calculées une fois, puis gardées).
+      if (mode === 'driver') {
+        const withFound = mine.filter((_, i) => found[i].length > 0);
+        const known = await api.detours(withFound.map((l) => l.id));
+        setDetours(known);
+        const todo = withFound
+          .map((l) => ({ id: l.id, ids: (found[mine.indexOf(l)] as Candidate[]).map((c) => c.request_id).filter((r) => known[l.id + r] == null) }))
+          .filter((t) => t.ids.length > 0)
+          .slice(0, 2);
+        if (todo.length) {
+          Promise.all(todo.map((t) => api.computeDetours(t.id, t.ids.slice(0, 5))))
+            .then(() => api.detours(withFound.map((l) => l.id)))
+            .then(setDetours)
+            .catch(() => {});
+        }
+      }
     } catch (e) {
       notify((e as Error).message, 'err');
     }
@@ -302,7 +319,12 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
                       </small>
                       <small>
                         {driver
-                          ? `${(c.seats ?? 1) === 1 ? '1 personne' : `${c.seats} personnes`} · montée à ${c.pickup_m} m de ta route`
+                          ? `${(c.seats ?? 1) === 1 ? '1 personne' : `${c.seats} personnes`} · ` +
+                            (detours[c.trip_id + c.request_id] == null
+                              ? `montée à ${c.pickup_m} m de ta route`
+                              : detours[c.trip_id + c.request_id] <= 1
+                                ? 'sur ta route, sans détour'
+                                : `détour ≈ ${detours[c.trip_id + c.request_id]} min`)
                           : `${c.seats_left} place(s)`}
                         {!driver && (c.cost_share_cents ?? 0) > 0 && ` · ${euros(c.cost_share_cents!)}`}
                       </small>

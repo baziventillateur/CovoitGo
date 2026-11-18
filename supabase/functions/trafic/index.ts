@@ -2,7 +2,8 @@
 // Deux usages, réservés à une personne connectée :
 //  - { trip_id, live } : durée du trajet publié (circulation habituelle à l'heure du départ,
 //    ou circulation du moment quand live = true) ;
-//  - { slots: { from, to, start, flex_min } } : comparaison de trois heures de départ.
+//  - { slots: { from, to, start, flex_min } } : comparaison de trois heures de départ ;
+//  - { detours: { trip_id, request_ids } } : minutes de détour pour passer prendre chaque passager.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
@@ -23,8 +24,9 @@ const point = (p: any): Point | null => {
 };
 
 // Durée et retard dû à la circulation, en minutes ; null si le fournisseur ne répond pas.
-async function travel(a: Point, b: Point, departAt: Date | null) {
-  const url = new URL(`https://api.tomtom.com/routing/1/calculateRoute/${a.lat},${a.lng}:${b.lat},${b.lng}/json`);
+async function travel(a: Point, b: Point, departAt: Date | null, via: Point[] = []) {
+  const path = [a, ...via, b].map((p) => `${p.lat},${p.lng}`).join(':');
+  const url = new URL(`https://api.tomtom.com/routing/1/calculateRoute/${path}/json`);
   url.searchParams.set('key', TOMTOM_API_KEY!);
   url.searchParams.set('traffic', 'true');
   url.searchParams.set('travelMode', 'car');
@@ -76,6 +78,33 @@ Deno.serve(async (req) => {
     const results = await Promise.all(times.map((t) => travel(from, to, t)));
     const slots = times.flatMap((t, i) => (results[i] ? [{ at: t.toISOString(), ...results[i]! }] : []));
     return json({ ok: slots.length > 0, slots });
+  }
+
+  // ---- Détour réel par passager -------------------------------------------
+  if (body?.detours) {
+    const trip = body.detours.trip_id;
+    const ids = Array.isArray(body.detours.request_ids) ? body.detours.request_ids.filter((x: unknown) => typeof x === 'string' && UUID.test(x)).slice(0, 5) : [];
+    if (typeof trip !== 'string' || !UUID.test(trip) || !ids.length) return json({ ok: false, reason: 'demande' }, 400);
+    if (!TOMTOM_API_KEY) return json({ ok: false, reason: 'non_configure' });
+    const { data: rows, error } = await supabase.rpc('traffic_detour_inputs', { p_trip_id: trip, p_user: auth.user.id, p_request_ids: ids });
+    if (error) return json({ ok: false, reason: 'trajet' }, 404);
+    if (!rows?.length) return json({ ok: true, done: 0 });
+
+    const r0 = rows[0];
+    const depart = r0.depart_at ? new Date(r0.depart_at) : null;
+    const o = { lat: r0.o_lat, lng: r0.o_lng }, d = { lat: r0.d_lat, lng: r0.d_lng };
+    const direct = r0.direct_min ?? (await travel(o, d, depart))?.minutes;
+    if (!direct) return json({ ok: false, reason: 'fournisseur' });
+    let done = 0;
+    await Promise.all(rows.map(async (r: any) => {
+      const withStop = await travel(o, d, depart, [{ lat: r.p_lat, lng: r.p_lng }, { lat: r.q_lat, lng: r.q_lng }]);
+      if (!withStop) return;
+      await supabase.rpc('traffic_detour_save', {
+        p_trip_id: trip, p_request_id: r.request_id, p_detour_min: Math.max(0, withStop.minutes - direct),
+      });
+      done++;
+    }));
+    return json({ ok: true, done });
   }
 
   // ---- Durée d'un trajet publié --------------------------------------------

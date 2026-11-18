@@ -30,6 +30,8 @@ export type Match = {
   vehicle_plate: string | null;
   updated_at: string;
   ride_minutes: number | null;
+  driver_distance_m?: number | null;
+  driver_seen_at?: string | null;
   traffic_delay_min?: number | null;
 };
 
@@ -74,6 +76,7 @@ export type Candidate = {
   seats_left?: number;
   cost_share_cents?: number;
   ride_minutes?: number;
+  detour_min?: number | null;
   traffic_delay_min?: number | null;
   seats?: number;
   note?: string | null;
@@ -113,9 +116,13 @@ export const api = {
     // Durée estimée des trajets confirmés : lue sur la mise en relation elle-même.
     const live = list.filter((m) => m.status === 'accepted').map((m) => m.id);
     if (live.length) {
-      const { data } = await supabase.from('matches').select('id,ride_minutes').in('id', live);
-      const minutes = new Map((data ?? []).map((r: any) => [r.id, r.ride_minutes]));
-      for (const m of list) m.ride_minutes = minutes.get(m.id) ?? null;
+      const { data } = await supabase.from('matches').select('id,ride_minutes,driver_distance_m,driver_seen_at').in('id', live);
+      const rows = new Map((data ?? []).map((r: any) => [r.id, r]));
+      for (const m of list) {
+        m.ride_minutes = rows.get(m.id)?.ride_minutes ?? null;
+        m.driver_distance_m = rows.get(m.id)?.driver_distance_m ?? null;
+        m.driver_seen_at = rows.get(m.id)?.driver_seen_at ?? null;
+      }
       // Retard dû à la circulation, ramené à la portion du passager.
       const tripIds = [...new Set(list.filter((m) => m.status === 'accepted').map((m) => m.trip_id))];
       const { data: trips } = await supabase.from('trips').select('id,duration_min,traffic_delay_min').in('id', tripIds);
@@ -134,6 +141,22 @@ export const api = {
     rpc<string>('propose_match', { p_trip_id: tripId, p_request_id: requestId }),
   respond: (id: string, accept: boolean) => rpc<string>('respond_match', { p_match_id: id, p_accept: accept }),
   advance: (id: string) => rpc<string>('advance_match', { p_match_id: id }),
+  // Position du chauffeur en route : seule la distance au rendez-vous est gardée côté serveur.
+  driverPing: (matchId: string, lng: number, lat: number) =>
+    rpc<number | null>('driver_ping', { p_match_id: matchId, p_lng: lng, p_lat: lat }),
+  // Détours déjà calculés pour mes trajets : « trajet + demande » → minutes.
+  async detours(tripIds: string[]): Promise<Record<string, number>> {
+    if (!tripIds.length) return {};
+    const { data } = await supabase.from('trip_detours').select('trip_id,request_id,detour_min').in('trip_id', tripIds);
+    return Object.fromEntries((data ?? []).map((d: any) => [d.trip_id + d.request_id, d.detour_min]));
+  },
+  async computeDetours(tripId: string, requestIds: string[]): Promise<void> {
+    try {
+      await supabase.functions.invoke('trafic', { body: { detours: { trip_id: tripId, request_ids: requestIds } } });
+    } catch {
+      /* le détour reste simplement non affiché */
+    }
+  },
   // Trois heures de départ comparées selon la circulation habituelle (à la demande du conducteur).
   async trafficSlots(
     from: { lat: number; lng: number },

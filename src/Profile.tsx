@@ -5,6 +5,7 @@ import { ReviewList, UserSheet } from './Reviews';
 import { levelOf } from './levels';
 import { Account } from './Account';
 import { SUPPORT_URL } from './Assistance';
+import { disablePush, enablePush, pushEnabled } from './push';
 import { playSound, setSoundsEnabled, soundsEnabled, unlockSounds } from './sounds';
 
 type Badge = { code: string; label: string; description: string; trips_required: number };
@@ -18,6 +19,10 @@ export function Profile({ uid, notify, mode, onSwitchMode }: { uid: string; noti
   const [earned, setEarned] = useState<Set<string>>(new Set());
   const [sounds, setSounds] = useState(soundsEnabled());
   const [emails, setEmails] = useState(true);
+  const [push, setPush] = useState(false);
+  useEffect(() => {
+    pushEnabled().then(setPush).catch(() => {});
+  }, []);
   const [viewUser, setViewUser] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
@@ -143,6 +148,27 @@ export function Profile({ uid, notify, mode, onSwitchMode }: { uid: string; noti
 
       <h3 className="section">Mon compte</h3>
       <Account notify={notify} />
+
+      <h3 className="section">Notifications</h3>
+      <div className="card form">
+        <div className="card-foot">
+          <span>Sur ce téléphone, même appli fermée</span>
+          <button
+            className={push ? 'chip on' : 'chip'}
+            onClick={async () => {
+              try {
+                if (push) await disablePush();
+                else await enablePush();
+                setPush(!push);
+              } catch (e) {
+                notify((e as Error).message, 'err');
+              }
+            }}
+          >
+            {push ? 'Activées' : 'Coupées'}
+          </button>
+        </div>
+      </div>
 
       <h3 className="section">E-mails</h3>
       <div className="card form">

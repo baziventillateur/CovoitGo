@@ -13,9 +13,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
+      includeAssets: ['icon.svg', 'push-sw.js'],
       // La page du support est une vraie page à part : le service worker ne doit pas la remplacer par l'appli.
-      workbox: { navigateFallbackDenylist: [/support\.html/] },
+      workbox: { navigateFallbackDenylist: [/support\.html/], importScripts: ['push-sw.js'] },
       manifest: {
         name: 'CovoitGo',
         short_name: 'CovoitGo',

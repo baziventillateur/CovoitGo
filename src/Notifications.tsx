@@ -10,6 +10,7 @@ const ICONS: Record<string, string> = {
   completed: '🏁',
   stage: '🚗',
   review: '⭐',
+  near: '📍',
 };
 
 type Props = { items: Notification[]; onClose: () => void; onOpen: (role: Mode) => void };
