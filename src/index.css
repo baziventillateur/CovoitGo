@@ -481,3 +481,9 @@ small .traffic, dd .traffic { margin-left: 0.3rem; }
 .approach small { color: var(--muted); font-size: 0.78rem; }
 .approach .link { display: inline; padding: 0; font-size: inherit; }
 .approach .chip { font-size: 0.8rem; padding: 0.3rem 0.6rem; }
+
+/* Comme une appli : pas de zoom par pincement ni par double toucher (la carte garde son propre zoom). */
+html, body { touch-action: pan-x pan-y; overscroll-behavior: none; -webkit-text-size-adjust: 100%; }
+/* Menu du bas : icônes plus lisibles */
+nav button { padding: 0.4rem 0.25rem 0.35rem; font-size: 0.74rem; gap: 1px; }
+nav button span { font-size: 1.65rem; line-height: 1.1; }
