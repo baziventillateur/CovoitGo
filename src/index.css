@@ -567,3 +567,119 @@ input[type='range'] { width: 100%; padding: 0; accent-color: var(--brand); touch
 .kpi strong.sm { font-size: 0.95rem; }
 .kpi strong.neg { color: var(--danger); }
 .admin .chips > span.chip { font-size: 0.72rem; padding: 0.2rem 0.5rem; }
+
+/* =====================================================================
+   Charte CovoitGo : la route. Lettres inspirées de la signalisation (Barlow),
+   bitume pour la navigation, marquage jaune comme seul accent, et de la
+   profondeur par des ombres à deux couches teintées de la couleur du mode.
+   ===================================================================== */
+:root {
+  --ink: #0d1f2a;
+  --muted: #5b6b78;
+  --line: #dde5e8;
+  --bg: #edf2f1;
+  --asphalt: #17252d;
+  --marking: #f5b301;
+  --shadow-1: 0 1px 2px rgb(13 31 42 / 0.06), 0 6px 16px -6px rgb(13 31 42 / 0.14);
+  --shadow-2: 0 2px 4px rgb(13 31 42 / 0.08), 0 18px 40px -14px rgb(13 31 42 / 0.28);
+  font-family: 'Barlow', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+body { background: var(--bg); }
+.app {
+  background:
+    radial-gradient(60rem 30rem at 100% -10%, color-mix(in srgb, var(--brand) 13%, transparent), transparent 70%),
+    radial-gradient(40rem 26rem at -10% 110%, color-mix(in srgb, var(--brand) 9%, transparent), transparent 70%),
+    var(--bg);
+}
+h1, h2, h3, .mode-badge strong, .money-kpi strong, .kpi strong, .when-clock strong, .points, .price-value strong {
+  font-family: 'Barlow Semi Condensed', 'Barlow', system-ui, sans-serif;
+  letter-spacing: 0.005em;
+}
+/* Titres de rubrique : plus de capitales, une petite barre de marquage devant. */
+.section { text-transform: none; letter-spacing: 0; font-size: 0.98rem; font-weight: 700; color: var(--ink); display: flex; align-items: center; gap: 0.45rem; }
+.section::before { content: ''; width: 0.9rem; height: 0.22rem; border-radius: 2px; background: var(--marking); flex: none; }
+
+/* Profondeur */
+.card { box-shadow: var(--shadow-1); border: 1px solid rgb(255 255 255 / 0.7); }
+.card.highlight { border: 2px solid var(--brand); box-shadow: var(--shadow-2); }
+.primary { background: linear-gradient(180deg, color-mix(in srgb, var(--brand) 88%, #fff), var(--brand)); box-shadow: 0 1px 0 rgb(255 255 255 / 0.25) inset, 0 6px 14px -6px color-mix(in srgb, var(--brand) 75%, transparent); }
+.primary:active { background: var(--brand-dark); box-shadow: none; transform: translateY(1px); }
+.ghost { box-shadow: 0 1px 2px rgb(13 31 42 / 0.05); }
+.chip.on { box-shadow: 0 4px 10px -5px color-mix(in srgb, var(--brand) 80%, transparent); }
+header { background: linear-gradient(160deg, color-mix(in srgb, var(--brand) 82%, #000), var(--brand)); box-shadow: 0 10px 24px -14px rgb(13 31 42 / 0.55); }
+nav { box-shadow: 0 -8px 24px -16px rgb(13 31 42 / 0.35); border-top: 0; }
+.sheet, .dialog { box-shadow: var(--shadow-2); }
+.sheet-backdrop { backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+.kpi { background: #fff; box-shadow: var(--shadow-1); border-color: transparent; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--marking); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+
+/* ---------- Tablette : contenu plus large, menu flottant ---------- */
+@media (min-width: 640px) {
+  main { max-width: 720px; padding: 1.25rem 1.5rem; }
+  nav { left: 50%; right: auto; bottom: 0.9rem; transform: translateX(-50%); width: 20rem; border-radius: 18px; overflow: hidden; }
+  .sheet-backdrop { align-items: center; justify-content: center; padding: 1.5rem; }
+  .sheet { max-width: 600px; border-radius: 20px; max-height: 88dvh; }
+  .sheet.admin { max-width: 860px; }
+  .sheet.map-sheet { max-width: 820px; }
+  .admin .kpis { grid-template-columns: repeat(4, 1fr); }
+  .auth, .picker { max-width: 430px; margin: 7vh auto; background: #fff; border-radius: 22px; box-shadow: var(--shadow-2); }
+}
+
+/* ---------- Ordinateur : rail de navigation en bitume à gauche ---------- */
+@media (min-width: 1000px) {
+  .app { display: grid; grid-template-columns: 15rem minmax(0, 1fr); grid-template-rows: auto 1fr; padding-bottom: 0; column-gap: 0; }
+  /* Le rail : une bande de bitume avec sa ligne de marquage. */
+  .app::before {
+    content: ''; position: fixed; inset: 0 auto 0 0; width: 15rem; z-index: 0;
+    background:
+      repeating-linear-gradient(180deg, var(--marking) 0 1.1rem, transparent 1.1rem 2.6rem) right 1.1rem top / 3px 100% no-repeat,
+      linear-gradient(180deg, #1e3039, var(--asphalt));
+    box-shadow: 8px 0 28px -14px rgb(13 31 42 / 0.6);
+  }
+  header {
+    grid-column: 1; grid-row: 1; position: sticky; top: 0; z-index: 2; align-self: start;
+    background: none; box-shadow: none; border-radius: 0; padding: 1.4rem 2.1rem 0.8rem 1.2rem;
+    grid-template-columns: 1fr auto; gap: 0.5rem;
+  }
+  header .mode-badge strong { font-size: 1.15rem; }
+  nav {
+    grid-column: 1; grid-row: 2; position: sticky; top: 6.2rem; align-self: start; z-index: 2;
+    left: auto; bottom: auto; transform: none; width: auto; margin: 0.6rem 2.1rem 0 0.9rem;
+    display: grid; grid-template-columns: 1fr; gap: 0.3rem; background: none; box-shadow: none; border-radius: 0; overflow: visible;
+  }
+  nav button {
+    display: flex; align-items: center; justify-items: start; gap: 0.7rem; padding: 0.6rem 0.8rem; border-radius: 12px;
+    color: rgb(255 255 255 / 0.72); font-size: 0.98rem; font-weight: 600; text-align: left;
+  }
+  nav button span { font-size: 1.25rem; line-height: 1; }
+  nav button:hover { background: rgb(255 255 255 / 0.07); color: #fff; }
+  nav button.active { background: rgb(255 255 255 / 0.12); color: #fff; box-shadow: inset 3px 0 0 var(--marking); }
+  main {
+    grid-column: 2; grid-row: 1 / span 2; position: relative; z-index: 1;
+    max-width: 1020px; width: 100%; margin: 0 auto; padding: 2rem 2.5rem 3rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-items: start; align-content: start;
+  }
+  main > * { grid-column: 1 / -1; }
+  main > .card.folder { grid-column: auto; }
+  main > .primary.big { justify-self: start; width: auto; padding: 0.8rem 1.6rem; }
+  main > form.card { max-width: 640px; width: 100%; justify-self: center; }
+  main > .card:not(.folder):not(form), main > .section, main > .money-entry { max-width: 720px; }
+  .card { border-radius: 16px; }
+  .card.folder { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+  .card.folder:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
+  .toast { left: calc(50% + 7.5rem); bottom: 1.5rem; }
+}
+p.searching { display: flex; align-items: center; gap: 0.5rem; }
+@media (min-width: 1000px) {
+  .app { grid-template-columns: 16rem minmax(0, 1fr); }
+  /* Le haut du rail prend la couleur du mode : conducteur ou passager se reconnaît d'un coup d'œil. */
+  .app::before {
+    width: 16rem;
+    background:
+      repeating-linear-gradient(180deg, var(--marking) 0 1.1rem, transparent 1.1rem 2.6rem) right 1.1rem top / 3px 100% no-repeat,
+      linear-gradient(180deg, color-mix(in srgb, var(--brand) 62%, var(--asphalt)) 0, var(--asphalt) 15rem);
+  }
+  header .mode-badge strong { font-size: 1.05rem; white-space: nowrap; }
+  .toast { left: calc(50% + 8rem); }
+}
