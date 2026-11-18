@@ -446,3 +446,19 @@ small .traffic, dd .traffic { margin-left: 0.3rem; }
 .slots-link { text-align: left; padding: 0.15rem 0; font-size: 0.8rem; }
 .chip.slot { font-weight: 500; font-size: 0.8rem; padding: 0.28rem 0.55rem; }
 .chip.slot.best { border-color: #16a34a; color: #15803d; background: #f0fdf4; font-weight: 700; }
+
+/* Choix rapide du jour et de l'heure */
+.when-field { width: 100%; text-align: left; background: #fff; border: 1px solid var(--line); border-radius: 9px; padding: 0.5rem 0.6rem; font-weight: 600; font-size: 0.95rem; }
+.when-sheet { display: grid; gap: 0.55rem; }
+.when-days, .when-hours { display: flex; gap: 0.35rem; overflow-x: auto; padding-bottom: 0.2rem; scrollbar-width: none; scroll-behavior: smooth; }
+.when-days::-webkit-scrollbar, .when-hours::-webkit-scrollbar { display: none; }
+.when-days .chip, .when-hours .chip { flex: none; }
+.when-sheet .chip { transition: transform 0.12s, background 0.15s; }
+.when-sheet .chip:active { transform: scale(0.92); }
+.when-sheet .chip.on { animation: chip-in 0.2s ease-out; }
+@keyframes chip-in { from { transform: scale(0.85); } 60% { transform: scale(1.08); } }
+.when-clock { display: flex; align-items: center; justify-content: center; gap: 1rem; }
+.when-clock strong { font-size: 2.3rem; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; color: var(--brand); animation: tick 0.22s ease-out; min-width: 6.2rem; text-align: center; }
+@keyframes tick { from { transform: translateY(-0.35rem) scale(0.94); opacity: 0.3; } }
+.when-minutes { display: flex; gap: 0.35rem; justify-content: center; flex-wrap: wrap; }
+.when-minutes .fine { font-weight: 500; color: var(--muted); }

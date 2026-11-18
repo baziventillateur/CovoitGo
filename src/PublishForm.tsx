@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { supabase } from './supabase';
 import { PlaceInput } from './PlaceInput';
+import { WhenPicker, toLocal } from './WhenPicker';
 import { fetchRoute, type Place } from './geo';
 import { euros, fmtDuration, fmtTime, nextQuarterLocal } from './format';
 import { api, type Mode, type Notify } from './api';
@@ -40,9 +41,7 @@ export function PublishForm({ mode, notify, onDone, onCancel }: Props) {
   }
 
   function pickSlot(iso: string) {
-    const d = new Date(iso);
-    const p = (n: number) => String(n).padStart(2, '0');
-    setWhen(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`);
+    setWhen(toLocal(new Date(iso)));
   }
 
   useEffect(() => {
@@ -111,10 +110,14 @@ export function PublishForm({ mode, notify, onDone, onCancel }: Props) {
       <h2>{driver ? 'Publier un trajet' : 'Chercher un trajet'}</h2>
       <PlaceInput label="Départ" value={from} onChange={setFrom} />
       <PlaceInput label="Arrivée" value={to} onChange={setTo} />
-      <label>
-        {driver ? 'Je pars à partir de' : 'Je suis prêt à partir de'}
-        <input type="datetime-local" required value={when} onChange={(e) => { setWhen(e.target.value); setSlots(null); }} />
-      </label>
+      <WhenPicker
+        label={driver ? 'Je pars à partir de' : 'Je suis prêt à partir de'}
+        value={when}
+        onChange={(v) => {
+          setWhen(v);
+          setSlots(null);
+        }}
+      />
       <div className="field">
         <span>{driver ? 'Je peux partir jusqu’à' : 'Je peux attendre jusqu’à'}</span>
         <div className="chips">
