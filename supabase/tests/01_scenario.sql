@@ -376,6 +376,7 @@ reset role;
 do $$
 declare u uuid := '00000000-0000-0000-0000-000000000001'; v_id bigint; v_c int;
 begin
+  delete from wallet_entries where user_id = u;  -- frais des trajets en espèces joués plus haut
   insert into wallet_entries (user_id, kind, cents) values (u, 'ride', 3000);
   begin perform wallet_withdraw_reserve(u); raise exception 'ECHEC : retrait sans RIB';
   exception when others then if sqlerrm like 'ECHEC%' then raise; end if; end;
@@ -393,6 +394,60 @@ begin
   perform wallet_withdraw_cancel(v_id);
   if (select coalesce(sum(cents),0) from wallet_entries where user_id = u) <> 0 then raise exception 'ECHEC : retrait confirmé annulable'; end if;
   if has_table_privilege('authenticated', 'wallet_entries', 'insert') then raise exception 'ECHEC : porte-monnaie modifiable par l''appli'; end if;
+end $$;
+
+-- Paiement : frais, carte obligatoire avant le départ, crédit du porte-monnaie, espèces, remboursement.
+do $$
+declare d uuid := '00000000-0000-0000-0000-000000000001'; p uuid := '00000000-0000-0000-0000-00000000000a';
+        v_trip uuid; v_req uuid; v_m uuid; v_price int; v_fee int; v_before int;
+begin
+  if service_fee(1800) <> 125 or service_fee(500) <> 60 or service_fee(0) <> 0 then raise exception 'ECHEC barème des frais'; end if;
+  select coalesce(sum(cents), 0) into v_before from wallet_entries where user_id = d;
+
+  -- Carte
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  v_trip := publish_trip('Rennes', -1.6778, 48.1173, 'Cesson', -1.6030, 48.1210, now() + interval '20 minutes', now() + interval '2 hours', 3, 0);
+  perform set_config('request.jwt.claim.sub', p::text, false);
+  v_req := publish_request('Rennes', -1.6770, 48.1170, 'Cesson', -1.6035, 48.1212, now() + interval '20 minutes', now() + interval '2 hours');
+  perform set_request_pay_method(v_req, 'card');
+  v_m := propose_match(v_trip, v_req);
+  select price_cents, fee_cents into v_price, v_fee from matches where id = v_m;
+  if (select pay_method from matches where id = v_m) <> 'card' or v_fee <> service_fee(v_price) or v_fee = 0 then raise exception 'ECHEC paiement figé sur la mise en relation'; end if;
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  perform respond_match(v_m, true);
+  if (select count(*) from notifications where match_id = v_m and kind = 'pay') <> 1 then raise exception 'ECHEC invitation à payer'; end if;
+  begin perform advance_match(v_m); raise exception 'ECHEC : départ sans paiement';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; end;
+  if not match_mark_paid(v_m, 'pi_test_1') or match_mark_paid(v_m, 'pi_test_1') then raise exception 'ECHEC marquage payé'; end if;
+  perform advance_match(v_m); perform advance_match(v_m); perform advance_match(v_m);
+  if (select coalesce(sum(cents), 0) from wallet_entries where user_id = d) - v_before <> v_price - v_fee then
+    raise exception 'ECHEC crédit du porte-monnaie';
+  end if;
+  if match_refund_claim(v_m) is not null then raise exception 'ECHEC : trajet terminé remboursable'; end if;
+
+  -- Carte puis annulation : remboursable une seule fois
+  v_trip := publish_trip('Brest', -4.4861, 48.3904, 'Guipavas', -4.4000, 48.4350, now() + interval '20 minutes', now() + interval '2 hours', 3, 0);
+  perform set_config('request.jwt.claim.sub', p::text, false);
+  v_req := publish_request('Brest', -4.4855, 48.3900, 'Guipavas', -4.4005, 48.4352, now() + interval '20 minutes', now() + interval '2 hours');
+  perform set_request_pay_method(v_req, 'card');
+  v_m := propose_match(v_trip, v_req);
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  perform respond_match(v_m, true);
+  perform match_mark_paid(v_m, 'pi_test_2');
+  perform cancel_match(v_m);
+  if match_refund_claim(v_m) <> 'pi_test_2' or match_refund_claim(v_m) is not null then raise exception 'ECHEC remboursement unique'; end if;
+
+  -- Espèces : seuls les frais sont dus
+  select coalesce(sum(cents), 0) into v_before from wallet_entries where user_id = d;
+  v_trip := publish_trip('Caen', -0.3707, 49.1829, 'Ifs', -0.3520, 49.1390, now() + interval '20 minutes', now() + interval '2 hours', 3, 0);
+  perform set_config('request.jwt.claim.sub', p::text, false);
+  v_req := publish_request('Caen', -0.3700, 49.1825, 'Ifs', -0.3525, 49.1392, now() + interval '20 minutes', now() + interval '2 hours');
+  v_m := propose_match(v_trip, v_req);
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  perform respond_match(v_m, true);
+  perform advance_match(v_m); perform advance_match(v_m); perform advance_match(v_m);
+  select fee_cents into v_fee from matches where id = v_m;
+  if (select coalesce(sum(cents), 0) from wallet_entries where user_id = d) - v_before <> -v_fee then raise exception 'ECHEC frais en espèces'; end if;
 end $$;
 
 \echo 'TOUS LES TESTS PASSENT'

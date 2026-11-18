@@ -45,6 +45,17 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
           .forEach((l) => api.traffic(l.id, false));
       }
       setMatches(all.filter((m) => m.role === mode));
+      // Paiement par carte commencé : on vérifie chez Stripe s'il a abouti (retour de la page de paiement, ou appli rouverte).
+      const waiting = all.filter((m) => m.role === mode && m.status === 'accepted' && m.pay_method === 'card' && !m.paid_at);
+      if (waiting.length) {
+        Promise.all(waiting.slice(0, 3).map((m) => api.confirmPayment(m.id))).then((paid) => {
+          if (paid.some(Boolean)) {
+            if (new URLSearchParams(window.location.search).has('paiement')) window.history.replaceState(null, '', window.location.pathname);
+            celebrate('Trajet payé !', '💳');
+            api.matches().then((fresh) => setMatches(fresh.filter((m) => m.role === mode))).catch(() => {});
+          }
+        });
+      }
       setListings(mine);
       setCandidates(Object.fromEntries(mine.map((l, i) => [l.id, found[i]])));
       // Conducteur : minutes de détour pour chaque passager possible (calculées une fois, puis gardées).
@@ -67,7 +78,7 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
       notify((e as Error).message, 'err');
     }
     setLoaded(true);
-  }, [mode, uid, notify]);
+  }, [mode, uid, notify, celebrate]);
 
   useEffect(() => {
     setLoaded(false);
@@ -148,6 +159,12 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
           <MatchCard
             m={m}
             busy={busy}
+            onPay={() =>
+              run(async () => {
+                const url = await api.pay(m.id);
+                if (url) window.location.href = url;
+              })
+            }
             onAdvance={() =>
               run(async () => {
                 const stage = await api.advance(m.id);

@@ -6,12 +6,13 @@ import { TripTracker } from './TripTracker';
 import { TrafficTag } from './Traffic';
 import { Approach } from './Approach';
 
-type Props = { m: Match; busy: boolean; onAdvance: () => void; onCancel: () => void; onUser: () => void; onHelp: () => void; meName: string };
+type Props = { m: Match; busy: boolean; onPay: () => void; onAdvance: () => void; onCancel: () => void; onUser: () => void; onHelp: () => void; meName: string };
 
 // Carte d'un trajet accepté : étapes en direct, coordonnées, action suivante.
-export function MatchCard({ m, busy, onAdvance, onCancel, onUser, onHelp, meName }: Props) {
+export function MatchCard({ m, busy, onPay, onAdvance, onCancel, onUser, onHelp, meName }: Props) {
   const driver = m.role === 'driver';
   const name = m.other_name;
+  const unpaid = m.pay_method === 'card' && !m.paid_at;
 
   let emoji = '🕒';
   let riding = false;
@@ -94,6 +95,11 @@ export function MatchCard({ m, busy, onAdvance, onCancel, onUser, onHelp, meName
             </dd>
           </>
         )}
+        <dt>Paiement</dt>
+        <dd>
+          {m.pay_method === 'card' ? (m.paid_at ? '💳 Carte · payé ✓' : '💳 Carte · en attente') : '💶 Espèces, au début du trajet'}
+          {driver && m.price_cents ? ` · tu reçois ${euros(m.price_cents - (m.fee_cents ?? 0))}` : ''}
+        </dd>
         {driver && (
           <>
             <dt>Passagers</dt>
@@ -114,7 +120,13 @@ export function MatchCard({ m, busy, onAdvance, onCancel, onUser, onHelp, meName
         )}
       </dl>
 
-      {action && (
+      {unpaid && !driver && (
+        <button className="primary big" disabled={busy} onClick={onPay}>
+          💳 Payer {euros(m.price_cents ?? m.cost_share_cents)} par carte
+        </button>
+      )}
+      {unpaid && driver && <small className="wait-pay">⏳ En attente du paiement de {name}. Tu pourras partir dès qu’il aura payé.</small>}
+      {action && !(unpaid && driver && m.stage === 'scheduled') && (
         <button className="primary big" disabled={busy} onClick={onAdvance}>
           {action}
         </button>

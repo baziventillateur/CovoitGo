@@ -2,6 +2,8 @@
 //  - { action: 'status' }   : état du compte de versement du chauffeur (relu chez Stripe)
 //  - { action: 'onboard' }  : crée le compte de versement si besoin et renvoie le lien Stripe pour saisir identité et RIB
 //  - { action: 'withdraw' } : vire tout le solde du porte-monnaie vers le compte du chauffeur (25 € minimum)
+//  - { action: 'pay', match_id }     : le passager règle son trajet accepté par carte (page de paiement Stripe)
+//  - { action: 'confirm', match_id } : relit le paiement chez Stripe et marque le trajet comme payé
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
@@ -9,6 +11,7 @@ const KEY = Deno.env.get('STRIPE_SECRET_KEY') ?? '';
 const APP_URL = 'https://baziventillateur.github.io/CovoitGo/';
 // Tant que le passage en réel n'est pas décidé, seule une clé de test est acceptée.
 const USABLE = KEY.startsWith('sk_test_');
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -101,6 +104,44 @@ Deno.serve(async (req) => {
         await supabase.rpc('wallet_withdraw_cancel', { p_entry_id: r.entry_id });
         return json({ ok: false, message: (e as Error).message });
       }
+    }
+    if (action === 'pay' || action === 'confirm') {
+      const matchId = body?.match_id;
+      if (typeof matchId !== 'string' || !UUID.test(matchId)) return json({ ok: false, reason: 'trajet' }, 400);
+      const { data: info } = await supabase.rpc('match_pay_info', { p_match_id: matchId, p_user: user.id });
+      const m = info?.[0];
+      if (!m || m.pay_method !== 'card') return json({ ok: false, message: 'Ce trajet ne se règle pas par carte' });
+      if (m.paid) return json({ ok: true, paid: true });
+
+      // Un paiement déjà commencé est relu chez Stripe avant toute chose (évite de payer deux fois).
+      if (m.checkout_session_id) {
+        const s = await stripe('GET', `checkout/sessions/${m.checkout_session_id}`);
+        if (s.payment_status === 'paid') {
+          await supabase.rpc('match_mark_paid', { p_match_id: matchId, p_payment_intent: String(s.payment_intent ?? '') });
+          return json({ ok: true, paid: true });
+        }
+        if (action === 'pay' && s.status === 'open' && s.url) return json({ ok: true, url: s.url });
+      }
+      if (action === 'confirm') return json({ ok: true, paid: false });
+
+      if (m.role !== 'passenger') return json({ ok: false, message: 'Seul le passager règle le trajet' });
+      if (m.status !== 'accepted') return json({ ok: false, message: 'Ce trajet n’est pas confirmé' });
+      if (m.price_cents < 50) return json({ ok: false, message: 'Montant trop faible pour un paiement par carte' });
+      const s = await stripe('POST', 'checkout/sessions', {
+        mode: 'payment', locale: 'fr', client_reference_id: matchId, customer_email: user.email ?? '',
+        success_url: `${APP_URL}?paiement=ok`, cancel_url: `${APP_URL}?paiement=annule`,
+        'line_items[0][quantity]': '1',
+        'line_items[0][price_data][currency]': 'eur',
+        'line_items[0][price_data][unit_amount]': String(m.price_cents),
+        'line_items[0][price_data][product_data][name]': `Covoiturage ${m.from_label} → ${m.to_label}`.slice(0, 120),
+        'payment_intent_data[statement_descriptor_suffix]': 'COVOITGO',
+        'payment_intent_data[transfer_group]': `covoitgo-${matchId}`,
+        'payment_intent_data[metadata][app]': 'covoitgo',
+        'payment_intent_data[metadata][match_id]': matchId,
+        'metadata[app]': 'covoitgo', 'metadata[match_id]': matchId,
+      });
+      await supabase.rpc('match_checkout_save', { p_match_id: matchId, p_session: s.id });
+      return json({ ok: true, url: s.url });
     }
     return json({ ok: false, reason: 'action' }, 400);
   } catch (e) {

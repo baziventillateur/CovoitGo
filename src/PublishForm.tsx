@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 import { PlaceInput } from './PlaceInput';
 import { WhenPicker, toLocal } from './WhenPicker';
 import { fetchRoute, type Place } from './geo';
-import { euros, fmtDuration, fmtTime, nextQuarterLocal } from './format';
+import { euros, fmtDuration, fmtTime, nextQuarterLocal, serviceFee } from './format';
 import { api, type EditTrip, type Mode, type Notify } from './api';
 
 const FLEX = [
@@ -57,6 +57,7 @@ export function PublishForm({ mode, notify, onDone, onCancel, edit }: Props) {
   const [price, setPrice] = useState(0);
   const [people, setPeople] = useState(1);
   const [note, setNote] = useState('');
+  const [payBy, setPayBy] = useState<'cash' | 'card'>('cash');
   const [busy, setBusy] = useState(false);
   // Créneaux comparés selon la circulation : uniquement si le conducteur le demande.
   const [slots, setSlots] = useState<{ at: string; minutes: number; delay_min: number }[] | 'loading' | 'none' | null>(null);
@@ -137,6 +138,7 @@ export function PublishForm({ mode, notify, onDone, onCancel, edit }: Props) {
     if (error) return { error: error.message };
     // Durée de conduite calculée par l'itinéraire : enregistrée avec le trajet (sans bloquer si ça échoue).
     if (driver && data && minutes) await supabase.rpc('set_trip_duration', { p_trip_id: data, p_minutes: minutes });
+    if (!driver && data && payBy === 'card') await api.setPayMethod(data as string, 'card').catch(() => {});
     return { id: data as string };
   }
 
@@ -325,6 +327,9 @@ export function PublishForm({ mode, notify, onDone, onCancel, edit }: Props) {
                     +
                   </button>
                 </div>
+                <small className="you-get">
+                  Tu reçois <b>{euros(price - serviceFee(price))}</b> par passager · frais de service {euros(serviceFee(price))}
+                </small>
                 <small>
                   Tu peux ajuster entre {euros(quote.min)} et {euros(quote.max)}. Un passager qui ne fait qu’une partie du trajet paie en proportion.
                 </small>
@@ -346,6 +351,18 @@ export function PublishForm({ mode, notify, onDone, onCancel, edit }: Props) {
                 </button>
               ))}
             </div>
+          </div>
+          <div className="field">
+            <span>Je paie</span>
+            <div className="chips">
+              <button type="button" className={payBy === 'cash' ? 'chip on' : 'chip'} onClick={() => setPayBy('cash')}>
+                💶 En espèces
+              </button>
+              <button type="button" className={payBy === 'card' ? 'chip on' : 'chip'} onClick={() => setPayBy('card')}>
+                💳 Par carte
+              </button>
+            </div>
+            <small>{payBy === 'card' ? 'Tu règles dans l’appli une fois le trajet accepté.' : 'Tu remets le montant au chauffeur au début du trajet.'}</small>
           </div>
           <label>
             Un mot pour le chauffeur (facultatif)

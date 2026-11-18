@@ -31,6 +31,10 @@ export type Match = {
   updated_at: string;
   ride_minutes: number | null;
   driver_distance_m?: number | null;
+  pay_method?: 'cash' | 'card';
+  fee_cents?: number;
+  price_cents?: number | null;
+  paid_at?: string | null;
   driver_seen_at?: string | null;
   traffic_delay_min?: number | null;
 };
@@ -116,14 +120,18 @@ export const api = {
   async matches(): Promise<Match[]> {
     const list = (await rpc<Match[]>('my_matches')) ?? [];
     // Durée estimée des trajets confirmés : lue sur la mise en relation elle-même.
-    const live = list.filter((m) => m.status === 'accepted').map((m) => m.id);
+    const live = list.filter((m) => m.status === 'accepted' || m.status === 'proposed').map((m) => m.id);
     if (live.length) {
-      const { data } = await supabase.from('matches').select('id,ride_minutes,driver_distance_m,driver_seen_at').in('id', live);
+      const { data } = await supabase.from('matches').select('id,ride_minutes,driver_distance_m,driver_seen_at,pay_method,fee_cents,price_cents,paid_at').in('id', live);
       const rows = new Map((data ?? []).map((r: any) => [r.id, r]));
       for (const m of list) {
         m.ride_minutes = rows.get(m.id)?.ride_minutes ?? null;
         m.driver_distance_m = rows.get(m.id)?.driver_distance_m ?? null;
         m.driver_seen_at = rows.get(m.id)?.driver_seen_at ?? null;
+        m.pay_method = rows.get(m.id)?.pay_method ?? 'cash';
+        m.fee_cents = rows.get(m.id)?.fee_cents ?? 0;
+        m.price_cents = rows.get(m.id)?.price_cents ?? null;
+        m.paid_at = rows.get(m.id)?.paid_at ?? null;
       }
       // Retard dû à la circulation, ramené à la portion du passager.
       const tripIds = [...new Set(list.filter((m) => m.status === 'accepted').map((m) => m.trip_id))];
@@ -184,6 +192,23 @@ export const api = {
     }
   },
   cancelMatch: (id: string) => rpc<void>('cancel_match', { p_match_id: id }),
+  // Paiement par carte : lien vers la page Stripe, puis vérification au retour.
+  async pay(matchId: string): Promise<string> {
+    const { data, error } = await supabase.functions.invoke('paiement', { body: { action: 'pay', match_id: matchId } });
+    if (error || !data?.ok) throw new Error(data?.message ?? 'Paiement par carte indisponible pour le moment');
+    if (data.paid) return '';
+    return data.url as string;
+  },
+  async confirmPayment(matchId: string): Promise<boolean> {
+    try {
+      const { data } = await supabase.functions.invoke('paiement', { body: { action: 'confirm', match_id: matchId } });
+      return !!data?.paid;
+    } catch {
+      return false;
+    }
+  },
+  setPayMethod: (requestId: string, method: 'cash' | 'card') =>
+    rpc<void>('set_request_pay_method', { p_request_id: requestId, p_method: method }),
   money: async () => (await rpc<MoneyRow[]>('my_money')) ?? [],
   cancelTrip: (id: string) => rpc<void>('cancel_trip', { p_trip_id: id }),
   pauseTrip: (id: string) => rpc<void>('pause_trip', { p_trip_id: id }),

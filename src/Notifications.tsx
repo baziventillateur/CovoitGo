@@ -11,6 +11,9 @@ const ICONS: Record<string, string> = {
   stage: '🚗',
   review: '⭐',
   near: '📍',
+  pay: '💳',
+  paid: '✅',
+  refund: '↩️',
 };
 
 type Props = { items: Notification[]; onClose: () => void; onOpen: (role: Mode) => void };
