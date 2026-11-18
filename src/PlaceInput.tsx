@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { searchPlaces, type Place } from './geo';
+import { MapPicker } from './MapPicker';
 
 type Props = {
   label: string;
@@ -11,6 +12,7 @@ export function PlaceInput({ label, value, onChange }: Props) {
   const [text, setText] = useState(value?.label ?? '');
   const [results, setResults] = useState<Place[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [showMap, setShowMap] = useState(false);
 
   useEffect(() => {
     // Une adresse déjà choisie n'a pas besoin de nouvelle recherche.
@@ -32,14 +34,23 @@ export function PlaceInput({ label, value, onChange }: Props) {
   return (
     <div className="place">
       <span>{label}</span>
-      <input
-        value={text}
-        placeholder="Tape une adresse…"
-        onChange={(e) => {
-          setText(e.target.value);
-          onChange(null);
-        }}
-      />
+      <div className="place-row">
+        <input
+          value={text}
+          placeholder="Tape une adresse…"
+          onChange={(e) => {
+            setText(e.target.value);
+            onChange(null);
+          }}
+        />
+        <button type="button" className="locate" aria-label={`Me localiser pour : ${label}`} onClick={() => setShowMap(true)}>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="12" cy="12" r="7" />
+            <circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none" />
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+          </svg>
+        </button>
+      </div>
       {!value && results.length > 0 && (
         <ul className="suggestions">
           {results.map((r) => (
@@ -58,7 +69,20 @@ export function PlaceInput({ label, value, onChange }: Props) {
           ))}
         </ul>
       )}
-      {value ? <small className="ok">Adresse retenue</small> : <small>Choisis une adresse dans la liste</small>}
+      {showMap && (
+        <MapPicker
+          title={label}
+          initial={value}
+          onClose={() => setShowMap(false)}
+          onPick={(place) => {
+            onChange(place);
+            setText(place.label);
+            setResults([]);
+            setShowMap(false);
+          }}
+        />
+      )}
+      {value ? <small className="ok">Adresse retenue</small> : <small>Choisis une adresse dans la liste, ou touche la cible pour te localiser</small>}
       {error && <small className="error">{error}</small>}
     </div>
   );

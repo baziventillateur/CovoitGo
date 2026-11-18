@@ -413,3 +413,13 @@ button:active:not(:disabled) { transform: scale(0.96); }
   .car.jit, .mini-spin, .live-emoji.riding::before { animation: none; }
   .mode-flip, .mode-flip-card { animation-duration: 0.6s; }
 }
+
+/* Localisation sur la carte */
+.place-row { display: flex; gap: 0.4rem; }
+.place-row input { flex: 1; min-width: 0; }
+.locate { flex: none; width: 2.5rem; padding: 0; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand-dark); border-radius: 9px; }
+.map-sheet { display: grid; gap: 0.45rem; max-height: 92dvh; }
+.map-box { position: relative; z-index: 0; border-radius: 12px; overflow: hidden; }
+.map { height: 52dvh; min-height: 240px; background: #e2e8f0; }
+.map-pin { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -92%); font-size: 2.1rem; pointer-events: none; z-index: 500; filter: drop-shadow(0 3px 3px rgb(0 0 0 / 0.35)); }
+.map-label { font-weight: 700; font-size: 0.95rem; min-height: 1.3em; }

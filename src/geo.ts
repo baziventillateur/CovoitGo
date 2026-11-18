@@ -33,3 +33,15 @@ export async function routeGeoJSON(a: Place, b: Place): Promise<string | null> {
     return null;
   }
 }
+
+// Adresse la plus proche d'un point (pour la position choisie sur la carte).
+export async function reverseGeocode(lng: number, lat: number): Promise<string | null> {
+  try {
+    const res = await fetch(`https://data.geopf.fr/geocodage/reverse?lon=${lng}&lat=${lat}&limit=1`);
+    if (!res.ok) return null;
+    const json = await res.json();
+    return (json.features?.[0]?.properties?.label as string | undefined) ?? null;
+  } catch {
+    return null;
+  }
+}
