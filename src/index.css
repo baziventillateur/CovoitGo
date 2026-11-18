@@ -423,3 +423,11 @@ button:active:not(:disabled) { transform: scale(0.96); }
 .map { height: 52dvh; min-height: 240px; background: #e2e8f0; }
 .map-pin { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -92%); font-size: 2.1rem; pointer-events: none; z-index: 500; filter: drop-shadow(0 3px 3px rgb(0 0 0 / 0.35)); }
 .map-label { font-weight: 700; font-size: 0.95rem; min-height: 1.3em; }
+
+/* Adresses récentes et favorites */
+.suggestions.saved li { display: flex; align-items: stretch; border-top: 1px solid var(--line); }
+.suggestions.saved li:first-child { border-top: 0; }
+.suggestions.saved li > button:first-child { flex: 1; min-width: 0; border-top: 0; }
+.suggestions.saved .fav { flex: none; width: 2.6rem; font-size: 1.2rem; color: #94a3b8; border-top: 0; text-align: center; padding: 0; }
+.suggestions.saved .fav.on { color: #f59e0b; }
+.suggestions.saved .more { width: 100%; text-align: center; color: var(--brand); font-weight: 700; border-top: 0; }

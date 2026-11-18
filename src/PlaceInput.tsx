@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { searchPlaces, type Place } from './geo';
 import { MapPicker } from './MapPicker';
+import { loadPlaces, rememberPlace, toggleFavorite, type SavedPlace } from './places';
 
 type Props = {
   label: string;
@@ -13,6 +14,27 @@ export function PlaceInput({ label, value, onChange }: Props) {
   const [results, setResults] = useState<Place[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(false);
+  const [saved, setSaved] = useState<SavedPlace[]>([]);
+  const [open, setOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+
+  useEffect(() => {
+    loadPlaces().then(setSaved);
+  }, []);
+
+  function pick(place: Place) {
+    onChange({ label: place.label, lng: place.lng, lat: place.lat });
+    setText(place.label);
+    setResults([]);
+    setOpen(false);
+    rememberPlace(place).then(setSaved);
+  }
+
+  // Adresses déjà validées qui correspondent à la saisie : favoris en tête, 5 visibles par défaut.
+  const needle = text.trim().toLowerCase();
+  const mine = saved.filter((p) => !needle || p.label.toLowerCase().includes(needle));
+  const mineShown = showAll ? mine : mine.slice(0, 5);
+  const mineLabels = new Set(mine.map((p) => p.label));
 
   useEffect(() => {
     // Une adresse déjà choisie n'a pas besoin de nouvelle recherche.
@@ -38,7 +60,10 @@ export function PlaceInput({ label, value, onChange }: Props) {
         <input
           value={text}
           placeholder="Tape une adresse…"
+          onFocus={() => setOpen(true)}
+          onBlur={() => window.setTimeout(() => setOpen(false), 200)}
           onChange={(e) => {
+            setOpen(true);
             setText(e.target.value);
             onChange(null);
           }}
@@ -51,22 +76,44 @@ export function PlaceInput({ label, value, onChange }: Props) {
           </svg>
         </button>
       </div>
-      {!value && results.length > 0 && (
-        <ul className="suggestions">
-          {results.map((r) => (
-            <li key={r.label}>
+      {!value && open && mine.length > 0 && (
+        <ul className="suggestions saved">
+          {mineShown.map((p) => (
+            <li key={p.label}>
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(p)}>
+                <span>{p.fav ? '⭐' : '🕘'}</span> {p.label}
+              </button>
               <button
                 type="button"
-                onClick={() => {
-                  onChange(r);
-                  setText(r.label);
-                  setResults([]);
-                }}
+                className={p.fav ? 'fav on' : 'fav'}
+                aria-label={p.fav ? `Retirer ${p.label} des favoris` : `Mettre ${p.label} en favori`}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => toggleFavorite(p.label).then(setSaved)}
               >
-                {r.label}
+                {p.fav ? '★' : '☆'}
               </button>
             </li>
           ))}
+          {mine.length > 5 && (
+            <li>
+              <button type="button" className="more" onMouseDown={(e) => e.preventDefault()} onClick={() => setShowAll(!showAll)}>
+                {showAll ? 'Voir moins' : `Voir les ${mine.length - 5} autres`}
+              </button>
+            </li>
+          )}
+        </ul>
+      )}
+      {!value && results.filter((r) => !mineLabels.has(r.label)).length > 0 && (
+        <ul className="suggestions">
+          {results
+            .filter((r) => !mineLabels.has(r.label))
+            .map((r) => (
+              <li key={r.label}>
+                <button type="button" onClick={() => pick(r)}>
+                  {r.label}
+                </button>
+              </li>
+            ))}
         </ul>
       )}
       {showMap && (
@@ -75,9 +122,7 @@ export function PlaceInput({ label, value, onChange }: Props) {
           initial={value}
           onClose={() => setShowMap(false)}
           onPick={(place) => {
-            onChange(place);
-            setText(place.label);
-            setResults([]);
+            pick(place);
             setShowMap(false);
           }}
         />
