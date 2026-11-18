@@ -547,4 +547,19 @@ begin
 end $$;
 reset role;
 
+-- Fiche client : fermée aux autres, complète pour l'admin.
+set role authenticated;
+do $$
+declare d uuid := '00000000-0000-0000-0000-000000000001'; p uuid := '00000000-0000-0000-0000-00000000000a'; v jsonb;
+begin
+  perform set_config('request.jwt.claim.sub', p::text, false);
+  begin perform admin_user_detail(d); raise exception 'ECHEC : fiche ouverte à tous';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; end;
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  v := admin_user_detail(p);
+  if v ->> 'name' is null or jsonb_array_length(v -> 'matches') < 3 or jsonb_array_length(v -> 'requests') < 3 then raise exception 'ECHEC fiche client'; end if;
+  if (v -> 'matches' -> 0 ->> 'other_id') is null then raise exception 'ECHEC : lien vers l''autre personne'; end if;
+end $$;
+reset role;
+
 \echo 'TOUS LES TESTS PASSENT'

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
 import { ago, euros } from './format';
+import { AdminUser } from './AdminUser';
 
 type Tab = 'vue' | 'clients' | 'activite' | 'argent' | 'reglages' | 'plus';
 type User = {
@@ -48,6 +49,7 @@ export function Admin({ onClose }: { onClose: () => void }) {
   const [blocked, setBlocked] = useState<Record<string, string>>({});
   const [pricing, setPricing] = useState<Record<string, number> | null>(null);
   const [saved, setSaved] = useState('');
+  const [fiche, setFiche] = useState<string | null>(null);
 
   const loadBlocked = () =>
     supabase.rpc('admin_blocked').then(({ data }) => setBlocked(Object.fromEntries((data ?? []).map((b: any) => [b.user_id, b.reason]))));
@@ -160,7 +162,10 @@ export function Admin({ onClose }: { onClose: () => void }) {
                 <li key={u.user_id}>
                   <div>
                     <strong>
-                      {u.name} {u.installed ? '📲' : ''} {u.rating ? `· ★ ${u.rating}` : ''}
+                      <button className="link name-link" onClick={() => setFiche(u.user_id)}>
+                        {u.name}
+                      </button>{' '}
+                      {u.installed ? '📲' : ''} {u.rating ? `· ★ ${u.rating}` : ''}
                     </strong>
                     <small>{u.email}</small>
                     <small>
@@ -259,6 +264,8 @@ export function Admin({ onClose }: { onClose: () => void }) {
             <small className="money-note">Les trajets déjà publiés et les mises en relation existantes gardent leurs prix et leurs frais.</small>
           </>
         )}
+
+        {fiche && <AdminUser userId={fiche} onClose={() => setFiche(null)} />}
 
         {tab === 'plus' && (
           <ul className="money-list">
