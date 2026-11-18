@@ -8,7 +8,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 const KEY = Deno.env.get('STRIPE_SECRET_KEY') ?? '';
-const APP_URL = 'https://baziventillateur.github.io/CovoitGo/';
+const APP_URL = 'https://covoitgo.paceapp.fr/';
 // Tant que le passage en réel n'est pas décidé, seule une clé de test est acceptée.
 const USABLE = KEY.startsWith('sk_test_');
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

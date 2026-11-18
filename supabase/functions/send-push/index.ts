@@ -5,7 +5,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
 
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-const APP_URL = 'https://baziventillateur.github.io/CovoitGo/';
+const APP_URL = 'https://covoitgo.paceapp.fr/';
 // Seuls les services de notification des navigateurs sont contactés.
 const HOSTS = /(^|\.)(fcm\.googleapis\.com|push\.services\.mozilla\.com|notify\.windows\.com|push\.apple\.com)$/;
 

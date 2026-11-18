@@ -4,7 +4,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-const APP_URL = 'https://baziventillateur.github.io/CovoitGo/';
+const APP_URL = 'https://covoitgo.paceapp.fr/';
 const SELF_URL = `${Deno.env.get('SUPABASE_URL')}/functions/v1/send-email`;
 const FROM = 'CovoitGo <covoitgo@paceapp.fr>';
 const REPLY_TO = 'contact@paceapp.fr';
@@ -71,7 +71,7 @@ async function sendForNotification(id: number): Promise<string> {
   const to = user?.user?.email;
   if (!to) return 'no-email';
 
-  const { data: m } = await supabase.from('matches').select('trip_id,request_id,driver_id,passenger_id,price_cents').eq('id', n.match_id).single();
+  const { data: m } = await supabase.from('matches').select('trip_id,request_id,driver_id,passenger_id,price_cents,fee_cents').eq('id', n.match_id).single();
   if (!m) return 'no-match';
   const driver = n.role === 'driver';
   const [{ data: trip }, { data: request }, { data: me }, { data: other }] = await Promise.all([
@@ -91,7 +91,8 @@ async function sendForNotification(id: number): Promise<string> {
   ];
   if (driver && request.seats > 1) rows.push(['Passagers', `${request.seats} personnes`]);
   // Prix figé à la mise en relation (portion du passager) ; à défaut, prix du trajet complet.
-  const price = m.price_cents ?? trip.cost_share_cents;
+  // Le conducteur voit ce qu'il reçoit, frais de service déduits.
+  const price = (m.price_cents ?? trip.cost_share_cents) - (driver ? (m.fee_cents ?? 0) : 0);
   if (price > 0) rows.push([driver ? 'Tu reçois' : 'À payer', (price / 100).toFixed(2).replace('.', ',') + ' €']);
 
   const unsub = `${SELF_URL}?unsubscribe=${prefs.token}`;
