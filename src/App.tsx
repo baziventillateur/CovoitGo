@@ -8,6 +8,7 @@ import { Profile } from './Profile';
 import { Notifications } from './Notifications';
 import { Unsubscribe } from './Unsubscribe';
 import { ConfirmDialog } from './ConfirmDialog';
+import { enablePush, pushEnabled, pushSupported } from './push';
 import { haptic } from './feedback';
 import { playSound, soundFor, unlockSounds } from './sounds';
 
@@ -33,6 +34,7 @@ export default function App() {
   const [stamp, setStamp] = useState<{ text: string; emoji: string } | null>(null);
   const [askSwitch, setAskSwitch] = useState<Mode | null>(null);
   const [flipTo, setFlipTo] = useState<Mode | null>(null);
+  const [askPush, setAskPush] = useState(false);
   const lastNotifId = useRef(0);
   const uid = session?.user.id;
 
@@ -137,6 +139,23 @@ export default function App() {
   }, [uid, loadNotifs, notify]);
 
   const unsubscribe = new URLSearchParams(window.location.search).get('unsubscribe');
+  // Notifications sur le téléphone : proposées dès la connexion (le navigateur exige un geste pour les autoriser).
+  // Déjà autorisées sur ce téléphone : l'abonnement est refait sans rien demander.
+  useEffect(() => {
+    if (!uid || !mode || !pushSupported()) return;
+    let cancelled = false;
+    (async () => {
+      if (await pushEnabled()) return;
+      if (Notification.permission === 'granted') return void enablePush().catch(() => {});
+      if (Notification.permission === 'denied') return;
+      const last = Number(localStorage.getItem('covoitgo-push-demande') ?? 0);
+      if (!cancelled && Date.now() - last > 3 * 86400_000) setAskPush(true);
+    })().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [uid, mode]);
+
   if (unsubscribe) return <Unsubscribe token={unsubscribe} />;
   if (!ready) return <p className="muted center pad">Chargement…</p>;
   if (!session || !uid) return <Auth />;
@@ -215,6 +234,25 @@ export default function App() {
         />
       )}
       {toast && <div className={`toast ${toast.kind}`}>{toast.text}</div>}
+      {askPush && !askSwitch && (
+        <ConfirmDialog
+          calm
+          emoji="🔔"
+          text="Activer les notifications ? Tu es prévenu tout de suite quand quelqu’un te propose un trajet, l’accepte ou arrive, même appli fermée."
+          yes="Activer les notifications"
+          no="Plus tard"
+          onYes={() => {
+            setAskPush(false);
+            enablePush()
+              .then(() => notify('Notifications activées'))
+              .catch((e) => notify((e as Error).message, 'err'));
+          }}
+          onNo={() => {
+            localStorage.setItem('covoitgo-push-demande', String(Date.now()));
+            setAskPush(false);
+          }}
+        />
+      )}
       {askSwitch && (
         <ConfirmDialog
           calm

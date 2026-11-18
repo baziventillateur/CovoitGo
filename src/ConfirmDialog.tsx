@@ -1,7 +1,7 @@
-type Props = { text: string; yes: string; onYes: () => void; onNo: () => void; emoji?: string; calm?: boolean };
+type Props = { text: string; yes: string; onYes: () => void; onNo: () => void; emoji?: string; calm?: boolean; no?: string };
 
 // Fenêtre de confirmation aux couleurs de l'appli (remplace celle du navigateur).
-export function ConfirmDialog({ text, yes, onYes, onNo, emoji = '🤔', calm }: Props) {
+export function ConfirmDialog({ text, yes, onYes, onNo, emoji = '🤔', calm, no = 'Non, revenir' }: Props) {
   return (
     <div className="sheet-backdrop middle" onClick={onNo}>
       <div className="dialog" role="alertdialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
@@ -11,7 +11,7 @@ export function ConfirmDialog({ text, yes, onYes, onNo, emoji = '🤔', calm }: 
           {yes}
         </button>
         <button className="ghost big" onClick={onNo}>
-          Non, revenir
+          {no}
         </button>
       </div>
     </div>
