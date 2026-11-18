@@ -32,6 +32,11 @@ do $$ declare q record; begin
   exception when others then if sqlerrm like 'ECHEC%' then raise; end if; raise notice 'refusé : %', sqlerrm; end;
 end $$;
 
+select set_trip_duration((select v from ids where k='trip'), 30);    -- plausible : retenue
+select set_trip_duration((select v from ids where k='trip'), 2000);  -- absurde : ignorée
+do $$ begin
+  if (select duration_min from trips) <> 30 then raise exception 'ECHEC durée du trajet'; end if;
+end $$;
 -- A : Asnières -> Saint-Lazare, plus tard mais dans la fenêtre  => DOIT matcher
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
 insert into ids select 'reqA', publish_request('Asnières', 2.2855, 48.9105, 'Saint-Lazare', 2.3240, 48.8770,
@@ -62,7 +67,7 @@ begin
 end $$;
 
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
-select driver_name, pickup_m, dropoff_m, shared_km, seats_left, cost_share_cents as prix_passager,
+select driver_name, pickup_m, dropoff_m, shared_km, seats_left, cost_share_cents as prix_passager, ride_minutes,
        overlap_end - overlap_start as creneau_commun
   from find_trips_for_request((select v from ids where k = 'reqA'));
 
@@ -124,6 +129,7 @@ do $$ begin
   if (select cost_share_cents from my_matches()) >= (select cost_share_cents from trips where id = (select v from ids where k='trip')) then
     raise exception 'ECHEC : le passager d''une portion doit payer moins que le trajet complet'; end if;
   if (select cost_share_cents from my_matches()) < 100 then raise exception 'ECHEC prix figé'; end if;
+  if (select ride_minutes from matches) not between 2 and 30 then raise exception 'ECHEC durée de la portion'; end if;
 end $$;
 select set_vehicle('Peugeot 208', 'grise', 'ab-123-cd');
 -- Un groupe de 3 ne rentre pas dans un trajet à 2 places

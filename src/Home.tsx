@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, type Candidate, type Listing, type Match, type Mode, type Notify } from './api';
 import { MatchCard } from './MatchCard';
 import { PublishForm } from './PublishForm';
-import { euros, fmt, fmtTime } from './format';
+import { euros, fmt, fmtDuration, fmtTime } from './format';
 import { Rating, ReviewCard, UserSheet } from './Reviews';
 import { ConfirmDialog } from './ConfirmDialog';
 import { Assistance } from './Assistance';
@@ -221,6 +221,7 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
                   {fmt(l.window_start)} – {fmtTime(l.window_end)}
                   {driver && (departed ? ' · en cours' : left > 0 ? ` · ${left} place(s) libre(s)` : ' · complet')}
                   {driver && l.cost_share_cents ? ` · ${euros(l.cost_share_cents)}/passager` : ''}
+                  {driver && l.duration_min ? ` · ≈ ${fmtDuration(l.duration_min)}` : ''}
                   {!driver && (l.seats ?? 1) > 1 && ` · ${l.seats} personnes`}
                 </small>
                 {!driver && l.note && <small className="note">« {l.note} »</small>}
@@ -256,6 +257,7 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
                       <Rating rating={c.rating} reviews={c.reviews} />
                       <small>
                         Départ possible {fmtTime(c.overlap_start)} · {c.shared_km} km ensemble
+                        {c.ride_minutes ? ` · ≈ ${fmtDuration(c.ride_minutes)}` : ''}
                       </small>
                       <small>
                         {driver

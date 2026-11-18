@@ -1,5 +1,5 @@
 import type { Match } from './api';
-import { euros, fmt } from './format';
+import { euros, fmt, fmtDuration } from './format';
 
 import { Rating } from './Reviews';
 import { TripTracker } from './TripTracker';
@@ -80,6 +80,12 @@ export function MatchCard({ m, busy, onAdvance, onCancel, onUser, onHelp, meName
         <dd>{m.pickup_label}</dd>
         <dt>Descente</dt>
         <dd>{m.dropoff_label}</dd>
+        {m.ride_minutes && (
+          <>
+            <dt>Durée</dt>
+            <dd>≈ {fmtDuration(m.ride_minutes)}</dd>
+          </>
+        )}
         {driver && (
           <>
             <dt>Passagers</dt>

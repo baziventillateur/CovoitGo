@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { supabase } from './supabase';
 import { PlaceInput } from './PlaceInput';
-import { routeGeoJSON, type Place } from './geo';
-import { euros, nextQuarterLocal } from './format';
+import { fetchRoute, type Place } from './geo';
+import { euros, fmtDuration, nextQuarterLocal } from './format';
 import type { Mode, Notify } from './api';
 
 const FLEX = [
@@ -22,7 +22,7 @@ export function PublishForm({ mode, notify, onDone, onCancel }: Props) {
   const [flex, setFlex] = useState(120);
   const [seats, setSeats] = useState(3);
   // Devis du trajet : distance, prix conseillé et fourchette, calculés par la base.
-  const [quote, setQuote] = useState<{ km: number; reco: number; min: number; max: number; route: string | null } | null>(null);
+  const [quote, setQuote] = useState<{ km: number; reco: number; min: number; max: number; route: string | null; minutes: number | null } | null>(null);
   const [price, setPrice] = useState(0);
   const [people, setPeople] = useState(1);
   const [note, setNote] = useState('');
@@ -33,7 +33,8 @@ export function PublishForm({ mode, notify, onDone, onCancel }: Props) {
     if (!driver || !from || !to) return;
     let cancelled = false;
     (async () => {
-      const route = await routeGeoJSON(from, to);
+      const found = await fetchRoute(from, to);
+      const route = found?.geojson ?? null;
       const { data, error } = await supabase.rpc('quote_trip', {
         p_origin_lng: from.lng,
         p_origin_lat: from.lat,
@@ -44,7 +45,7 @@ export function PublishForm({ mode, notify, onDone, onCancel }: Props) {
       if (cancelled) return;
       if (error || !data?.[0]) return notify(error?.message ?? 'Prix indisponible pour ce trajet', 'err');
       const q = data[0];
-      setQuote({ km: Number(q.km), reco: q.reco_cents, min: q.min_cents, max: q.max_cents, route });
+      setQuote({ km: Number(q.km), reco: q.reco_cents, min: q.min_cents, max: q.max_cents, route, minutes: found?.minutes ?? null });
       setPrice(q.reco_cents);
     })();
     return () => {
@@ -69,7 +70,7 @@ export function PublishForm({ mode, notify, onDone, onCancel }: Props) {
       p_window_start: start.toISOString(),
       p_window_end: end.toISOString(),
     };
-    const { error } = driver
+    const { data: created, error } = driver
       ? await supabase.rpc('publish_trip', {
           ...common,
           p_seats: seats,
@@ -79,6 +80,10 @@ export function PublishForm({ mode, notify, onDone, onCancel }: Props) {
       : await supabase.rpc('publish_request', { ...common, p_seats: people, p_note: note });
     setBusy(false);
     if (error) return notify(error.message, 'err');
+    // Durée de conduite calculée par l'itinéraire : enregistrée avec le trajet (sans bloquer si ça échoue).
+    if (driver && created && quote?.minutes) {
+      await supabase.rpc('set_trip_duration', { p_trip_id: created, p_minutes: quote.minutes });
+    }
     onDone();
   }
 
@@ -126,6 +131,7 @@ export function PublishForm({ mode, notify, onDone, onCancel }: Props) {
                     <strong>{euros(price)}</strong>
                     <small>
                       {price === quote.reco ? 'Prix conseillé' : `Conseillé : ${euros(quote.reco)}`} · {String(quote.km).replace('.', ',')} km
+                      {quote.minutes ? ` · ≈ ${fmtDuration(quote.minutes)}` : ''}
                     </small>
                   </div>
                   <button type="button" className="step" aria-label="Augmenter le prix" disabled={price >= quote.max} onClick={() => setPrice(Math.min(quote.max, price + 50))}>

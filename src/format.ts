@@ -27,3 +27,10 @@ export function ago(iso: string): string {
   if (min < 1440) return `il y a ${Math.round(min / 60)} h`;
   return `il y a ${Math.round(min / 1440)} j`;
 }
+
+export function fmtDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`;
+}

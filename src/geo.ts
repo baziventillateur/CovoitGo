@@ -16,9 +16,11 @@ export async function searchPlaces(query: string): Promise<Place[]> {
   }));
 }
 
-// Renvoie le tracé en GeoJSON (LineString) ou null : dans ce cas la base
-// prend la ligne droite entre le départ et l'arrivée.
-export async function routeGeoJSON(a: Place, b: Place): Promise<string | null> {
+export type Route = { geojson: string; minutes: number | null };
+
+// Tracé du trajet (GeoJSON LineString) et durée de conduite, ou null : dans ce cas
+// la base prend la ligne droite entre le départ et l'arrivée et estime la durée.
+export async function fetchRoute(a: Place, b: Place): Promise<Route | null> {
   try {
     const url =
       'https://data.geopf.fr/navigation/itineraire' +
@@ -28,7 +30,13 @@ export async function routeGeoJSON(a: Place, b: Place): Promise<string | null> {
     if (!res.ok) return null;
     const json = await res.json();
     const geometry = json.geometry ?? json.routes?.[0]?.geometry;
-    return geometry?.type === 'LineString' ? JSON.stringify(geometry) : null;
+    if (geometry?.type !== 'LineString') return null;
+    // La durée est exprimée dans l'unité annoncée par le service ; sans unité claire, on s'en passe.
+    const raw = Number(json.duration);
+    const perMinute: Record<string, number> = { minute: 1, second: 1 / 60, hour: 60 };
+    const factor = perMinute[String(json.timeUnit)];
+    const minutes = Number.isFinite(raw) && raw > 0 && factor ? Math.round(raw * factor) : null;
+    return { geojson: JSON.stringify(geometry), minutes };
   } catch {
     return null;
   }

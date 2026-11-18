@@ -43,6 +43,7 @@ export type Listing = {
   note?: string | null;
   status?: string;
   cost_share_cents?: number;
+  duration_min?: number | null;
 };
 
 export type Candidate = {
@@ -59,6 +60,7 @@ export type Candidate = {
   shared_km: number;
   seats_left?: number;
   cost_share_cents?: number;
+  ride_minutes?: number;
   seats?: number;
   note?: string | null;
 };
@@ -158,7 +160,7 @@ export const api = {
       mode === 'driver'
         ? supabase
             .from('trips')
-            .select('id,origin_label,dest_label,window_start,window_end,seats,seats_taken,status,cost_share_cents')
+            .select('id,origin_label,dest_label,window_start,window_end,seats,seats_taken,status,cost_share_cents,duration_min')
             .eq('driver_id', uid)
             .in('status', ['open', 'full'])
         : supabase
