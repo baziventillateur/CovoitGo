@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>CovoitGo</title>
+    <meta name="robots" content="noindex" />
+    <script>
+      // Une adresse inconnue sous /CovoitGo/ (lien d'e-mail, ancien lien) ramène à l'appli,
+      // en gardant ce qui suit « ? » et « # » : c'est là que voyagent les jetons de connexion.
+      var base = '/' + (location.pathname.split('/')[1] || '') + '/';
+      location.replace(base + location.search + location.hash);
+    </script>
+  </head>
+  <body>
+    <p>Redirection vers CovoitGo…</p>
+  </body>
+</html>

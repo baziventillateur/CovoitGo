@@ -47,7 +47,10 @@ export function Auth() {
       }
     } else if (step === 'forgot') {
       // On ne dit pas si un compte existe pour cette adresse.
-      await supabase.auth.signInWithOtp({ email: mail, options: { shouldCreateUser: false } });
+      await supabase.auth.signInWithOtp({
+        email: mail,
+        options: { shouldCreateUser: false, emailRedirectTo: window.location.origin + import.meta.env.BASE_URL },
+      });
       setCodeFor('email');
       go('code');
     } else {
