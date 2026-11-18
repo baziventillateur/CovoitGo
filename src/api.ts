@@ -44,6 +44,7 @@ export type Listing = {
   status?: string;
   cost_share_cents?: number;
   duration_min?: number | null;
+  traffic_delay_min?: number | null;
 };
 
 export type Candidate = {
@@ -109,6 +110,14 @@ export const api = {
     rpc<string>('propose_match', { p_trip_id: tripId, p_request_id: requestId }),
   respond: (id: string, accept: boolean) => rpc<string>('respond_match', { p_match_id: id, p_accept: accept }),
   advance: (id: string) => rpc<string>('advance_match', { p_match_id: id }),
+  // Durée avec la circulation, calculée côté serveur. Sans effet si le service n'est pas configuré.
+  async traffic(tripId: string, live: boolean): Promise<void> {
+    try {
+      await supabase.functions.invoke('trafic', { body: { trip_id: tripId, live } });
+    } catch {
+      /* la durée de l'itinéraire reste affichée */
+    }
+  },
   cancelMatch: (id: string) => rpc<void>('cancel_match', { p_match_id: id }),
   cancelTrip: (id: string) => rpc<void>('cancel_trip', { p_trip_id: id }),
   cancelRequest: (id: string) => rpc<void>('cancel_request', { p_request_id: id }),
@@ -160,7 +169,7 @@ export const api = {
       mode === 'driver'
         ? supabase
             .from('trips')
-            .select('id,origin_label,dest_label,window_start,window_end,seats,seats_taken,status,cost_share_cents,duration_min')
+            .select('id,origin_label,dest_label,window_start,window_end,seats,seats_taken,status,cost_share_cents,duration_min,traffic_delay_min')
             .eq('driver_id', uid)
             .in('status', ['open', 'full'])
         : supabase

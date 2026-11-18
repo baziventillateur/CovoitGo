@@ -107,7 +107,14 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
           <MatchCard
             m={m}
             busy={busy}
-            onAdvance={() => run(() => api.advance(m.id))}
+            onAdvance={() =>
+              run(async () => {
+                const stage = await api.advance(m.id);
+                // Au départ et à la prise en charge : heure d'arrivée recalée sur la circulation du moment.
+                if (stage !== 'completed') await api.traffic(m.trip_id, true);
+                return stage;
+              })
+            }
             onUser={person(m)}
             onHelp={() => setHelpFor(m)}
             meName={meName}
@@ -222,6 +229,7 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
                   {driver && (departed ? ' · en cours' : left > 0 ? ` · ${left} place(s) libre(s)` : ' · complet')}
                   {driver && l.cost_share_cents ? ` · ${euros(l.cost_share_cents)}/passager` : ''}
                   {driver && l.duration_min ? ` · ≈ ${fmtDuration(l.duration_min)}` : ''}
+                  {driver && (l.traffic_delay_min ?? 0) >= 3 ? ` (dont ${l.traffic_delay_min} min de bouchons)` : ''}
                   {!driver && (l.seats ?? 1) > 1 && ` · ${l.seats} personnes`}
                 </small>
                 {!driver && l.note && <small className="note">« {l.note} »</small>}

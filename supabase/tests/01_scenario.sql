@@ -245,4 +245,24 @@ do $$ begin
   perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
   if (select status || '/' || seats_taken from trips where id = (select v from ids where k='trip')) <> 'open/0' then raise exception 'ECHEC place non rendue'; end if;
 end $$;
+-- Circulation : réservation d'un appel puis durée recalée (fonctions réservées au serveur).
+reset role;
+do $$
+declare v_trip uuid; v_driver uuid; v_n int;
+begin
+  select id, driver_id into v_trip, v_driver from trips where status in ('open','full') limit 1;
+  if v_trip is null then raise notice 'circulation : aucun trajet ouvert, test sauté'; return; end if;
+  select count(*) into v_n from traffic_reserve(v_trip, v_driver, false);
+  if v_n <> 1 then raise exception 'ECHEC circulation : réservation refusée'; end if;
+  select count(*) into v_n from traffic_reserve(v_trip, v_driver, false);
+  if v_n <> 0 then raise exception 'ECHEC circulation : second appel immédiat accepté'; end if;
+  if traffic_apply(v_trip, 100000, 5) then raise exception 'ECHEC circulation : durée absurde retenue'; end if;
+  begin perform traffic_reserve(v_trip, gen_random_uuid(), false);
+    raise exception 'ECHEC circulation : trajet d''un autre accepté';
+  exception when others then if sqlerrm like 'ECHEC%' then raise; end if; end;
+  if has_function_privilege('authenticated', 'traffic_apply(uuid,integer,integer)', 'execute') then
+    raise exception 'ECHEC circulation : fonction ouverte à l''appli';
+  end if;
+end $$;
+
 \echo 'TOUS LES TESTS PASSENT'

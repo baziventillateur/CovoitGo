@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 import { PlaceInput } from './PlaceInput';
 import { fetchRoute, type Place } from './geo';
 import { euros, fmtDuration, nextQuarterLocal } from './format';
-import type { Mode, Notify } from './api';
+import { api, type Mode, type Notify } from './api';
 
 const FLEX = [
   { min: 30, label: '30 min' },
@@ -84,6 +84,8 @@ export function PublishForm({ mode, notify, onDone, onCancel }: Props) {
     if (driver && created && quote?.minutes) {
       await supabase.rpc('set_trip_duration', { p_trip_id: created, p_minutes: quote.minutes });
     }
+    // Puis la durée avec la circulation habituelle à l'heure du départ.
+    if (driver && created) await api.traffic(created as string, false);
     onDone();
   }
 
