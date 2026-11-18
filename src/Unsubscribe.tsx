@@ -3,7 +3,7 @@ import { useState } from 'react';
 // Page ouverte depuis le lien « Ne plus recevoir ces e-mails » : pas besoin d'être connecté.
 export function Unsubscribe({ token }: { token: string }) {
   const [state, setState] = useState<'ask' | 'busy' | 'done' | 'error'>('ask');
-  const home = window.location.origin + import.meta.env.BASE_URL;
+  const home = window.location.origin + window.location.pathname;
 
   async function confirm() {
     setState('busy');

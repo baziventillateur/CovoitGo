@@ -7,7 +7,8 @@
     <script>
       // Une adresse inconnue sous /CovoitGo/ (lien d'e-mail, ancien lien) ramène à l'appli,
       // en gardant ce qui suit « ? » et « # » : c'est là que voyagent les jetons de connexion.
-      var base = '/' + (location.pathname.split('/')[1] || '') + '/';
+      // Sur l'adresse GitHub, l'appli est dans un sous-dossier ; sur son propre domaine, elle est à la racine.
+      var base = /github\.io$/.test(location.hostname) ? '/' + (location.pathname.split('/')[1] || '') + '/' : '/';
       location.replace(base + location.search + location.hash);
     </script>
   </head>

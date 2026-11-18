@@ -37,7 +37,7 @@ export function Auth() {
         password,
         options: {
           data: { display_name: name.trim(), phone: phone.trim() },
-          emailRedirectTo: window.location.origin + import.meta.env.BASE_URL,
+          emailRedirectTo: window.location.origin + window.location.pathname,
         },
       });
       if (error) setMessage(error.message);
@@ -49,7 +49,7 @@ export function Auth() {
       // On ne dit pas si un compte existe pour cette adresse.
       await supabase.auth.signInWithOtp({
         email: mail,
-        options: { shouldCreateUser: false, emailRedirectTo: window.location.origin + import.meta.env.BASE_URL },
+        options: { shouldCreateUser: false, emailRedirectTo: window.location.origin + window.location.pathname },
       });
       setCodeFor('email');
       go('code');

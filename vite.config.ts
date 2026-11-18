@@ -4,7 +4,8 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 declare const process: { env: Record<string, string | undefined> };
 
-// En production sur GitHub Pages, l'appli vit sous /CovoitGo/ (défini par VITE_BASE).
+// Chemins relatifs en production (VITE_BASE=./) : l'appli fonctionne aussi bien sous
+// baziventillateur.github.io/CovoitGo/ que sur son propre domaine, à la racine.
 const base = process.env.VITE_BASE ?? '/';
 
 export default defineConfig({
