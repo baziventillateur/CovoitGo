@@ -361,4 +361,15 @@ begin
   exception when others then if sqlerrm like 'ECHEC%' then raise; end if; end;
 end $$;
 
+-- Mes comptes : les trajets terminés apparaissent avec leur montant, côté conducteur.
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
+do $$ begin
+  if (select count(*) from my_money()) <> (select count(*) from matches where status = 'completed'
+        and '00000000-0000-0000-0000-000000000001' in (driver_id, passenger_id)) then
+    raise exception 'ECHEC mes comptes';
+  end if;
+end $$;
+reset role;
+
 \echo 'TOUS LES TESTS PASSENT'

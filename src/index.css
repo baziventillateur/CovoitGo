@@ -487,3 +487,25 @@ html, body { touch-action: pan-x pan-y; overscroll-behavior: none; -webkit-text-
 /* Menu du bas : icônes plus lisibles */
 nav button { padding: 0.4rem 0.25rem 0.35rem; font-size: 0.74rem; gap: 1px; }
 nav button span { font-size: 1.65rem; line-height: 1.1; }
+
+/* Mes comptes */
+.money { display: grid; gap: 0.6rem; max-height: 90dvh; --m: #0f766e; }
+.money.passenger { --m: #4f46e5; }
+.money-kpi { text-align: center; display: grid; gap: 0.1rem; }
+.money-kpi strong { font-size: 2.3rem; color: var(--m); font-variant-numeric: tabular-nums; animation: tick 0.25s ease-out; }
+.money-kpi small { color: var(--muted); font-size: 0.78rem; }
+.money-bars { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.4rem; height: 7.5rem; align-items: end; }
+.money-bars .bar { display: grid; grid-template-rows: auto 1fr auto; height: 100%; justify-items: center; gap: 0.15rem; }
+.money-bars .bar span { font-size: 0.66rem; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.money-bars .bar i { align-self: end; width: 70%; border-radius: 6px 6px 2px 2px; background: color-mix(in srgb, var(--m) 35%, #fff); animation: grow 0.5s ease-out; transform-origin: bottom; }
+.money-bars .bar.now i { background: var(--m); }
+.money-bars .bar.now span, .money-bars .bar.now em { color: var(--m); font-weight: 700; }
+.money-bars .bar em { font-style: normal; font-size: 0.7rem; color: var(--muted); }
+@keyframes grow { from { transform: scaleY(0); } }
+.money-net, .money-note { color: var(--muted); font-size: 0.76rem; text-align: center; }
+.money-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.money-list li { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.4rem 0; border-top: 1px solid var(--line); }
+.money-list strong { font-size: 0.85rem; display: block; }
+.money-list small { color: var(--muted); font-size: 0.74rem; }
+.money-list b { color: var(--m); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.money-entry { width: 100%; display: flex; justify-content: space-between; align-items: center; font-weight: 600; text-align: left; }

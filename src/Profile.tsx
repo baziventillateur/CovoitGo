@@ -4,6 +4,7 @@ import { api, type Mode, type Notify } from './api';
 import { ReviewList, UserSheet } from './Reviews';
 import { levelOf } from './levels';
 import { Account } from './Account';
+import { Money } from './Money';
 import { SUPPORT_URL } from './Assistance';
 import { disablePush, enablePush, pushEnabled } from './push';
 import { playSound, setSoundsEnabled, soundsEnabled, unlockSounds } from './sounds';
@@ -12,6 +13,7 @@ type Badge = { code: string; label: string; description: string; trips_required:
 
 export function Profile({ uid, notify, mode, onSwitchMode }: { uid: string; notify: Notify; mode: Mode; onSwitchMode: () => void }) {
   const [name, setName] = useState('');
+  const [showMoney, setShowMoney] = useState(false);
   const [points, setPoints] = useState(0);
   const [phone, setPhone] = useState('');
   const [car, setCar] = useState({ model: '', color: '', plate: '' });
@@ -145,6 +147,13 @@ export function Profile({ uid, notify, mode, onSwitchMode }: { uid: string; noti
           Enregistrer
         </button>
       </div>
+
+      <h3 className="section">Mes comptes</h3>
+      <button className="card money-entry" onClick={() => setShowMoney(true)}>
+        <span>💶 Argent reçu et dépensé</span>
+        <span>›</span>
+      </button>
+      {showMoney && <Money mode={mode} onClose={() => setShowMoney(false)} />}
 
       <h3 className="section">Mon compte</h3>
       <Account notify={notify} />

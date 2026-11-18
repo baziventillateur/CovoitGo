@@ -61,6 +61,8 @@ export type EditTrip = {
   price: number;
 };
 
+export type MoneyRow = { match_id: string; role: Mode; at: string; cents: number; from_label: string; to_label: string };
+
 export type Candidate = {
   trip_id: string;
   request_id: string;
@@ -182,6 +184,7 @@ export const api = {
     }
   },
   cancelMatch: (id: string) => rpc<void>('cancel_match', { p_match_id: id }),
+  money: async () => (await rpc<MoneyRow[]>('my_money')) ?? [],
   cancelTrip: (id: string) => rpc<void>('cancel_trip', { p_trip_id: id }),
   pauseTrip: (id: string) => rpc<void>('pause_trip', { p_trip_id: id }),
   resumeTrip: (id: string) => rpc<void>('resume_trip', { p_trip_id: id }),
