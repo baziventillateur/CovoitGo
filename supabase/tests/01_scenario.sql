@@ -394,6 +394,11 @@ begin
   perform wallet_withdraw_cancel(v_id);
   if (select coalesce(sum(cents),0) from wallet_entries where user_id = u) <> 0 then raise exception 'ECHEC : retrait confirmé annulable'; end if;
   if has_table_privilege('authenticated', 'wallet_entries', 'insert') then raise exception 'ECHEC : porte-monnaie modifiable par l''appli'; end if;
+  -- Un seul retrait par mois
+  insert into wallet_entries (user_id, kind, cents) values (u, 'ride', 3000) returning id into v_id;
+  begin perform wallet_withdraw_reserve(u); raise exception 'ECHEC : deux retraits dans le mois';
+  exception when others then if sqlerrm not like 'Un retrait par mois%' then raise exception 'ECHEC retrait mensuel : %', sqlerrm; end if; end;
+  delete from wallet_entries where id = v_id;
 end $$;
 
 -- Paiement : frais, carte obligatoire avant le départ, crédit du porte-monnaie, espèces, remboursement.
@@ -610,5 +615,53 @@ begin
   if (res ->> 'done')::int <> 2 or (select status from trips where id = a) = 'cancelled' then raise exception 'ECHEC suppression de série : %', res; end if;
 end $$;
 reset role;
+
+-- Frais d'espèces : au-delà de 5 € dus, le chauffeur ne propose ni n'accepte de trajet en espèces ;
+-- le passager n'est jamais bloqué ; la carte reste possible ; la recharge débloque, une seule fois.
+do $$
+declare d uuid := '00000000-0000-0000-0000-000000000001'; p uuid := '00000000-0000-0000-0000-00000000000a';
+        v_trip uuid; v_req uuid; v_m uuid;
+begin
+  delete from wallet_entries where user_id = d;
+  insert into wallet_entries (user_id, kind, cents) values (d, 'cash_fee', -600);
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  if not (select blocked from cash_debt_status()) or (select debt from cash_debt_status()) <> 600 then raise exception 'ECHEC état de la dette'; end if;
+  v_trip := publish_trip('Nancy', 6.1844, 48.6921, 'Laxou', 6.1500, 48.6850, now() + interval '20 minutes', now() + interval '2 hours', 3, 0);
+  perform set_config('request.jwt.claim.sub', p::text, false);
+  v_req := publish_request('Nancy', 6.1840, 48.6920, 'Laxou', 6.1505, 48.6852, now() + interval '20 minutes', now() + interval '2 hours');
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  begin perform propose_match(v_trip, v_req); raise exception 'ECHEC : proposition en espèces malgré la dette';
+  exception when others then if sqlerrm not like 'Tu dois 6,00 €%' then raise exception 'ECHEC blocage proposition : %', sqlerrm; end if; end;
+  perform set_config('request.jwt.claim.sub', p::text, false);
+  v_m := propose_match(v_trip, v_req);
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  begin perform respond_match(v_m, true); raise exception 'ECHEC : acceptation en espèces malgré la dette';
+  exception when others then if sqlerrm not like 'Tu dois%' then raise exception 'ECHEC blocage acceptation : %', sqlerrm; end if; end;
+  perform set_config('request.jwt.claim.sub', p::text, false);
+  perform set_request_pay_method(v_req, 'card');
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  if respond_match(v_m, true) <> 'accepted' then raise exception 'ECHEC : trajet par carte refusé au chauffeur endetté'; end if;
+  perform cancel_match(v_m);
+
+  perform wallet_topup_start(d, 'cs_test_1', 600);
+  if wallet_topup_credit('cs_test_1', 'pi_t') <> 600 or wallet_topup_credit('cs_test_1', 'pi_t') <> 0 then raise exception 'ECHEC recharge unique'; end if;
+  if (select blocked from cash_debt_status()) or (select coalesce(sum(cents), 0) from wallet_entries where user_id = d) <> 0 then
+    raise exception 'ECHEC : recharge sans effet';
+  end if;
+  if has_function_privilege('authenticated', 'wallet_topup_credit(text, text)', 'execute') then raise exception 'ECHEC : recharge créditable par l''appli'; end if;
+
+  -- Passage du seuil : le chauffeur est prévenu une fois.
+  insert into wallet_entries (user_id, kind, cents) values (d, 'cash_fee', -480);
+  v_trip := publish_trip('Dijon', 5.0415, 47.3220, 'Chenôve', 5.0090, 47.2900, now() + interval '20 minutes', now() + interval '2 hours', 3, 0);
+  perform set_config('request.jwt.claim.sub', p::text, false);
+  v_req := publish_request('Dijon', 5.0410, 47.3215, 'Chenôve', 5.0095, 47.2905, now() + interval '20 minutes', now() + interval '2 hours');
+  v_m := propose_match(v_trip, v_req);
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  perform respond_match(v_m, true);
+  perform advance_match(v_m); perform advance_match(v_m); perform advance_match(v_m);
+  if (select count(*) from notifications where user_id = d and kind = 'debt') <> 1 then raise exception 'ECHEC alerte de dette'; end if;
+  if not (select blocked from cash_debt_status()) then raise exception 'ECHEC : dette au-delà du seuil non bloquante'; end if;
+  delete from wallet_entries where user_id = d;
+end $$;
 
 \echo 'TOUS LES TESTS PASSENT'

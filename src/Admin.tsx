@@ -257,6 +257,17 @@ export function Admin({ onClose }: { onClose: () => void }) {
             <small className="money-note">
               Aperçu : 5 km → {euros(price(5))} (frais {euros(fee(price(5)))}) · 20 km → {euros(price(20))} (frais {euros(fee(price(20)))}) · 45 km → {euros(price(45.5))} (frais {euros(fee(price(45.5)))}) · 100 km → {euros(price(100))} (frais {euros(fee(price(100)))})
             </small>
+            <h3 className="section">Porte-monnaie des chauffeurs</h3>
+            <div className="admin-form">
+              <label>
+                Frais d’espèces dus avant blocage (centimes)
+                <input type="number" inputMode="numeric" value={pricing.cash_debt_max} onChange={(e) => setPricing({ ...pricing, cash_debt_max: Number(e.target.value) })} />
+              </label>
+              <label>
+                Retraits par mois
+                <input type="number" inputMode="numeric" value={pricing.withdrawals_per_month} onChange={(e) => setPricing({ ...pricing, withdrawals_per_month: Number(e.target.value) })} />
+              </label>
+            </div>
             <button className="primary big" onClick={savePricing}>
               Enregistrer les barèmes
             </button>

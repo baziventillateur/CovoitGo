@@ -209,6 +209,11 @@ export const api = {
       return false;
     }
   },
+  // Frais d'espèces dus par le chauffeur ; au-delà du seuil, plus de trajets en espèces.
+  async cashDebt(): Promise<{ debt: number; max_debt: number; blocked: boolean }> {
+    const rows = await rpc<{ debt: number; max_debt: number; blocked: boolean }[]>('cash_debt_status');
+    return rows?.[0] ?? { debt: 0, max_debt: 500, blocked: false };
+  },
   setPayMethod: (requestId: string, method: 'cash' | 'card') =>
     rpc<void>('set_request_pay_method', { p_request_id: requestId, p_method: method }),
   // Détour maximum accepté par le conducteur (minutes) : 15 par défaut, entre 5 et 30.

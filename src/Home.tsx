@@ -8,6 +8,7 @@ import { euros, fmt, fmtDuration, fmtTime } from './format';
 import { Rating, ReviewCard, UserSheet } from './Reviews';
 import { ConfirmDialog } from './ConfirmDialog';
 import { Assistance } from './Assistance';
+import { Wallet } from './Wallet';
 
 type Celebrate = (text: string, emoji: string) => void;
 type Props = { mode: Mode; uid: string; meName: string; refreshKey: number; notify: Notify; celebrate: Celebrate; onChanged: () => void };
@@ -53,6 +54,9 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
   const [edit, setEdit] = useState<EditTrip | null>(null);
   const [menuFor, setMenuFor] = useState<Listing | null>(null);
   const [openSeries, setOpenSeries] = useState<string | null>(null);
+  // Chauffeur : frais d'espèces dus ; au-delà du seuil, il ne propose ni n'accepte de trajet en espèces.
+  const [debt, setDebt] = useState<{ debt: number; blocked: boolean } | null>(null);
+  const [showWallet, setShowWallet] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -76,6 +80,7 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
           .forEach((l) => api.traffic(l.id, false));
       }
       setMatches(all.filter((m) => m.role === mode));
+      if (mode === 'driver') api.cashDebt().then(setDebt).catch(() => {});
       // Paiement par carte commencé : on vérifie chez Stripe s'il a abouti (retour de la page de paiement, ou appli rouverte).
       const waiting = all.filter((m) => m.role === mode && m.status === 'accepted' && m.pay_method === 'card' && !m.paid_at);
       if (waiting.length) {
@@ -259,6 +264,7 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
                 {driver && m.seats > 1 && ` · ${m.seats} personnes`}
               </small>
               {driver && m.note && <small className="note">« {m.note} »</small>}
+              {driver && m.pay_method && <small>{m.pay_method === 'card' ? '💳 Paie par carte' : '💶 Paie en espèces'}</small>}
             </button>
           </div>
           {driver && (
@@ -267,9 +273,15 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
             </button>
           )}
           <div className="row2">
-            <button className="primary" disabled={busy} onClick={() => run(() => api.respond(m.id, true), 'Trajet confirmé !', '🤝')}>
-              Accepter
-            </button>
+            {driver && debt?.blocked && m.pay_method === 'cash' ? (
+              <button className="primary" disabled={busy} onClick={() => setShowWallet(true)}>
+                Régler mes frais pour accepter
+              </button>
+            ) : (
+              <button className="primary" disabled={busy} onClick={() => run(() => api.respond(m.id, true), 'Trajet confirmé !', '🤝')}>
+                Accepter
+              </button>
+            )}
             <button className="ghost" disabled={busy} onClick={() => run(() => api.respond(m.id, false))}>
               Refuser
             </button>
@@ -301,6 +313,15 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
       </button>
 
       {!loaded && <p className="muted center">Chargement…</p>}
+
+      {driver && debt?.blocked && (
+        <div className="debt-banner">
+          <span>Tu dois {euros(debt.debt)} de frais de service : les passagers qui paient en espèces sont en pause.</span>
+          <button className="primary small" onClick={() => setShowWallet(true)}>
+            Régler
+          </button>
+        </div>
+      )}
 
       {empty && (
         <div className="card empty">
@@ -633,6 +654,15 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
           );
         })()}
       {mapFor && <RouteMap {...mapFor} onClose={() => setMapFor(null)} />}
+      {showWallet && (
+        <Wallet
+          notify={notify}
+          onClose={() => {
+            setShowWallet(false);
+            api.cashDebt().then(setDebt).catch(() => {});
+          }}
+        />
+      )}
       {helpFor && <Assistance m={helpFor} notify={notify} onClose={() => setHelpFor(null)} />}
       {viewUser && <UserSheet userId={viewUser.id} name={viewUser.name} onClose={() => setViewUser(null)} />}
     </>

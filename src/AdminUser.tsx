@@ -8,7 +8,7 @@ const STATUS: Record<string, string> = {
   proposed: 'en attente', accepted: 'confirmé', declined: 'refusé', completed: 'terminé',
 };
 const WALLET: Record<string, string> = {
-  ride: 'Trajet payé par carte', cash_fee: 'Frais de service (espèces)', withdrawal: 'Retrait', refund: 'Remboursement', adjustment: 'Ajustement',
+  ride: 'Trajet payé par carte', cash_fee: 'Frais de service (espèces)', withdrawal: 'Retrait', refund: 'Remboursement', adjustment: 'Ajustement', topup: 'Recharge par carte',
 };
 const day = (iso: string) => new Date(iso).toLocaleString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 

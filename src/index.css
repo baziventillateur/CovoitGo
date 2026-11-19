@@ -514,6 +514,11 @@ nav button span { font-size: 1.65rem; line-height: 1.1; }
 .gauge { height: 0.4rem; border-radius: 999px; background: var(--line); overflow: hidden; margin: 0.25rem 15% 0.1rem; }
 .gauge i { display: block; height: 100%; background: var(--m); border-radius: 999px; transition: width 0.5s ease-out; }
 .money-list b.minus { color: var(--muted); }
+.money-kpi.owed strong { color: var(--danger); }
+.topup-row { display: flex; align-items: center; justify-content: center; gap: 0.4rem; flex-wrap: wrap; }
+.topup-row small { color: var(--muted); font-size: 0.74rem; }
+.debt-banner { display: flex; align-items: center; gap: 0.5rem; background: #fef2f2; color: var(--danger); border-radius: 12px; padding: 0.5rem 0.65rem; font-size: 0.8rem; line-height: 1.3; }
+.debt-banner span { flex: 1; }
 
 /* Paiement */
 .you-get { color: var(--brand); }

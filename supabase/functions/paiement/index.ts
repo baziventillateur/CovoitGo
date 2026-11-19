@@ -4,6 +4,7 @@
 //  - { action: 'withdraw' } : vire tout le solde du porte-monnaie vers le compte du chauffeur (25 € minimum)
 //  - { action: 'pay', match_id }     : le passager règle son trajet accepté par carte (page de paiement Stripe)
 //  - { action: 'confirm', match_id } : relit le paiement chez Stripe et marque le trajet comme payé
+//  - { action: 'topup', cents }      : recharge du porte-monnaie par carte (frais d'espèces à régler, ou d'avance)
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
@@ -62,8 +63,50 @@ Deno.serve(async (req) => {
     return { has_account: true, details_submitted: !!a.details_submitted, payouts_enabled: !!a.payouts_enabled };
   };
 
+  // Recharges commencées : relues chez Stripe, créditées une seule fois (retour de la page de paiement ou plus tard).
+  const settleTopups = async () => {
+    const { data: pending } = await supabase.rpc('wallet_topup_pending', { p_user: user.id });
+    let credited = 0;
+    for (const t of (pending ?? []) as { session_id: string; cents: number }[]) {
+      try {
+        const s = await stripe('GET', `checkout/sessions/${t.session_id}`);
+        if (s.payment_status === 'paid' && s.metadata?.kind === 'topup' && s.metadata?.user_id === user.id && Number(s.amount_total) === t.cents) {
+          const { data } = await supabase.rpc('wallet_topup_credit', { p_session: t.session_id, p_payment_intent: String(s.payment_intent ?? '') });
+          credited += Number(data ?? 0);
+        }
+      } catch {
+        /* relu au prochain passage */
+      }
+    }
+    return credited;
+  };
+
   try {
-    if (action === 'status') return json({ ok: true, test: true, ...(await refresh()) });
+    if (action === 'status') {
+      const credited = await settleTopups();
+      return json({ ok: true, test: true, credited, ...(await refresh()) });
+    }
+
+    if (action === 'topup') {
+      const cents = Number(body?.cents);
+      if (!Number.isInteger(cents) || cents < 50 || cents > 10000) return json({ ok: false, message: 'Montant entre 0,50 € et 100 €' });
+      const s = await stripe('POST', 'checkout/sessions', {
+        mode: 'payment', locale: 'fr', client_reference_id: user.id, customer_email: user.email ?? '',
+        success_url: `${APP_URL}?versement=recharge`, cancel_url: `${APP_URL}?versement=annule`,
+        'line_items[0][quantity]': '1',
+        'line_items[0][price_data][currency]': 'eur',
+        'line_items[0][price_data][unit_amount]': String(cents),
+        'line_items[0][price_data][product_data][name]': 'Recharge du porte-monnaie CovoitGo',
+        'payment_intent_data[statement_descriptor_suffix]': 'COVOITGO',
+        'payment_intent_data[metadata][app]': 'covoitgo',
+        'payment_intent_data[metadata][kind]': 'topup',
+        'payment_intent_data[metadata][user_id]': user.id,
+        'metadata[app]': 'covoitgo', 'metadata[kind]': 'topup', 'metadata[user_id]': user.id,
+      });
+      const { error } = await supabase.rpc('wallet_topup_start', { p_user: user.id, p_session: s.id, p_cents: cents });
+      if (error) return json({ ok: false, message: 'Recharge indisponible pour le moment' });
+      return json({ ok: true, url: s.url });
+    }
 
     if (action === 'onboard') {
       if (!accountId) {
