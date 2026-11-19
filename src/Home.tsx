@@ -160,6 +160,12 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
 
   const active = matches.filter((m) => m.status === 'proposed' || m.status === 'accepted');
   const view = seriesView(listings, busyListings(matches, mode));
+  const seriesRun = (series: string, action: 'pause' | 'resume' | 'cancel' | 'cancel_requests', verb: string) =>
+    run(async () => {
+      const r = await api.seriesAction(series, action);
+      const kept = r.kept ? ` · ${r.kept} gardée${r.kept > 1 ? 's' : ''} (passager confirmé)` : '';
+      notify(`${r.done} date${r.done > 1 ? 's' : ''} ${verb}${r.done > 1 ? 's' : ''}${kept}`);
+    });
   const toReview = matches.filter((m) => m.status === 'completed' && !m.reviewed_by_me);
   const done = matches.filter((m) => m.status === 'completed' && m.reviewed_by_me).slice(0, 3);
   // Une paire trajet/demande déjà mise en relation ne peut plus être proposée.
@@ -393,6 +399,23 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
                                 )}
                               </li>
                             ))}
+                            {!driver && (
+                              <li className="series-all">
+                                <button
+                                  className="ghost small danger-line"
+                                  disabled={busy}
+                                  onClick={() =>
+                                    setAsk({
+                                      text: 'Supprimer toutes les dates à venir de cette recherche ? Celles déjà confirmées par un chauffeur sont gardées.',
+                                      yes: 'Oui, tout supprimer',
+                                      run: () => seriesRun(l.series_id!, 'cancel_requests', 'supprimée'),
+                                    })
+                                  }
+                                >
+                                  🗑 Supprimer toute la série
+                                </button>
+                              </li>
+                            )}
                           </ul>
                         )}
                       </>
@@ -568,6 +591,43 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
                 >
                   🗑 Supprimer
                 </button>
+                {l.series_id &&
+                  (() => {
+                    const series = l.series_id;
+                    const future = listings.filter((x) => x.series_id === series && new Date(x.window_end).getTime() > Date.now());
+                    const anyOpen = future.some((x) => x.status === 'open');
+                    const anyPaused = future.some((x) => x.status === 'paused');
+                    return (
+                      <>
+                        <small className="menu-group">🔁 Toute la série · {future.length} date{future.length > 1 ? 's' : ''} à venir</small>
+                        {anyOpen && (
+                          <button className="ghost" onClick={() => { close(); seriesRun(series, 'pause', 'suspendue'); }}>
+                            ⏸ Suspendre toute la série
+                            <small>Plus personne ne voit ces dates. Les dates avec un passager confirmé ne bougent pas.</small>
+                          </button>
+                        )}
+                        {anyPaused && (
+                          <button className="ghost" onClick={() => { close(); seriesRun(series, 'resume', 'reprise'); }}>
+                            ▶️ Reprendre toute la série
+                            <small>Les dates suspendues redeviennent visibles.</small>
+                          </button>
+                        )}
+                        <button
+                          className="ghost danger-line"
+                          onClick={() => {
+                            close();
+                            setAsk({
+                              text: `Supprimer toutes les dates à venir de cette série (${future.length}) ? Elles seront définitivement supprimées. Les dates avec un passager confirmé sont gardées.`,
+                              yes: 'Oui, tout supprimer',
+                              run: () => seriesRun(series, 'cancel', 'supprimée'),
+                            });
+                          }}
+                        >
+                          🗑 Supprimer toute la série
+                        </button>
+                      </>
+                    );
+                  })()}
               </div>
             </div>
           );

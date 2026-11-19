@@ -697,3 +697,6 @@ p.searching { display: flex; align-items: center; gap: 0.5rem; }
 .series-list { list-style: none; margin: 0.4rem 0 0; padding: 0; display: grid; border-top: 1px solid var(--line); }
 .series-list li { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.3rem 0; border-bottom: 1px solid var(--line); font-size: 0.82rem; }
 .series-list .more { width: 1.7rem; height: 1.7rem; font-size: 0.95rem; }
+
+.actions-sheet .menu-group { margin-top: 0.4rem; padding-top: 0.5rem; border-top: 1px solid var(--line); font-weight: 700; color: var(--ink); }
+.series-list .series-all { justify-content: flex-end; border-bottom: 0; }

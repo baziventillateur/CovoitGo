@@ -219,6 +219,9 @@ export const api = {
   setMaxDetour: (minutes: number) => rpc<number>('set_max_detour', { p_minutes: minutes }),
   // Rattache les dates d'un trajet ou d'une recherche récurrente à une même série.
   setSeries: (ids: string[], series: string) => rpc<void>('set_series', { p_ids: ids, p_series: series }),
+  // Action sur toutes les dates à venir d'une série ; les dates avec un passager confirmé sont gardées.
+  seriesAction: (series: string, action: 'pause' | 'resume' | 'cancel' | 'cancel_requests') =>
+    rpc<{ done: number; kept: number }>('series_action', { p_series: series, p_action: action }),
   money: async () => (await rpc<MoneyRow[]>('my_money')) ?? [],
   cancelTrip: (id: string) => rpc<void>('cancel_trip', { p_trip_id: id }),
   pauseTrip: (id: string) => rpc<void>('pause_trip', { p_trip_id: id }),

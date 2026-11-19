@@ -584,4 +584,31 @@ begin
 end $$;
 reset role;
 
+-- Actions de série : suspendre, reprendre, supprimer ; les dates avec un passager confirmé sont gardées.
+set role authenticated;
+do $$
+declare d uuid := '00000000-0000-0000-0000-000000000001'; p uuid := '00000000-0000-0000-0000-00000000000a';
+        a uuid; b uuid; c uuid; r uuid; m uuid; sid uuid := gen_random_uuid(); res jsonb;
+begin
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  a := publish_trip('Metz', 6.1757, 49.1193, 'Thionville', 6.1683, 49.3579, now() + interval '10 days', now() + interval '10 days 1 hour', 3, 0);
+  b := publish_trip('Metz', 6.1757, 49.1193, 'Thionville', 6.1683, 49.3579, now() + interval '11 days', now() + interval '11 days 1 hour', 3, 0);
+  c := publish_trip('Metz', 6.1757, 49.1193, 'Thionville', 6.1683, 49.3579, now() + interval '12 days', now() + interval '12 days 1 hour', 3, 0);
+  perform set_series(array[a, b, c], sid);
+  perform set_config('request.jwt.claim.sub', p::text, false);
+  r := publish_request('Metz', 6.1757, 49.1193, 'Thionville', 6.1683, 49.3579, now() + interval '10 days', now() + interval '10 days 1 hour');
+  begin perform series_action(sid, 'cancel'); exception when others then null; end;
+  if (select count(*) from trips where series_id = sid and status = 'cancelled') <> 0 then raise exception 'ECHEC : série d''un autre supprimée'; end if;
+  m := propose_match(a, r);
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  perform respond_match(m, true);
+  res := series_action(sid, 'pause');
+  if (res ->> 'done')::int <> 2 or (res ->> 'kept')::int <> 1 then raise exception 'ECHEC suspension de série : %', res; end if;
+  res := series_action(sid, 'resume');
+  if (res ->> 'done')::int <> 2 then raise exception 'ECHEC reprise de série : %', res; end if;
+  res := series_action(sid, 'cancel');
+  if (res ->> 'done')::int <> 2 or (select status from trips where id = a) = 'cancelled' then raise exception 'ECHEC suppression de série : %', res; end if;
+end $$;
+reset role;
+
 \echo 'TOUS LES TESTS PASSENT'
