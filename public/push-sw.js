@@ -9,7 +9,7 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(d.title || 'CovoitGo', {
       body: d.body || '',
-      icon: 'icon.svg',
+      icon: 'icon-192.png',
       badge: 'icon.svg',
       tag: d.tag,
       renotify: true,

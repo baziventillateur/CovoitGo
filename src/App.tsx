@@ -182,6 +182,7 @@ export default function App() {
     return (
       <div className="picker">
         <h1>Bienvenue sur CovoitGo</h1>
+        <small className="by">by PaceApp</small>
         <p className="tagline">Tu es plutôt…</p>
         <button className="pick" onClick={() => setMode('driver')}>
           <span>🚗</span>
@@ -206,7 +207,7 @@ export default function App() {
         <div className="mode-badge">
           <span>{mode === 'driver' ? '🚗' : '🙋'}</span>
           <span>
-            <small>CovoitGo</small>
+            <small>CovoitGo <i>by PaceApp</i></small>
             <strong>Mode {mode === 'driver' ? 'conducteur' : 'passager'}</strong>
           </span>
         </div>

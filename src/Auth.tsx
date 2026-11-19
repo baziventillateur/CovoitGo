@@ -69,8 +69,9 @@ export function Auth() {
 
   return (
     <div className="auth">
-      <div className="logo">🚗</div>
+      <img className="logo-img" src={`${import.meta.env.BASE_URL}icon.svg`} alt="" />
       <h1>CovoitGo</h1>
+      <small className="by">by PaceApp</small>
       <p className="tagline">Le covoiturage du quotidien, sans planning figé.</p>
       <form onSubmit={submit} className="card">
         {step === 'code' ? (

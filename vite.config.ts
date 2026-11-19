@@ -14,11 +14,11 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg', 'push-sw.js'],
+      includeAssets: ['icon.svg', 'icon-192.png', 'apple-touch-icon.png', 'push-sw.js'],
       // La page du support est une vraie page à part : le service worker ne doit pas la remplacer par l'appli.
       workbox: { navigateFallbackDenylist: [/support\.html/], importScripts: ['push-sw.js'] },
       manifest: {
-        name: 'CovoitGo',
+        name: 'CovoitGo by PaceApp',
         short_name: 'CovoitGo',
         description: 'Covoiturage du quotidien',
         theme_color: '#0f766e',
@@ -26,7 +26,12 @@ export default defineConfig({
         display: 'standalone',
         start_url: base,
         scope: base,
-        icons: [{ src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
+        icons: [
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+        ],
       },
     }),
   ],
