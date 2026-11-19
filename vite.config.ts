@@ -14,7 +14,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg', 'icon-192.png', 'apple-touch-icon.png', 'push-sw.js'],
+      includeAssets: ['icon.svg', 'icon-192.png', 'apple-touch-icon.png', 'favicon.ico', 'favicon.svg', 'favicon-32.png', 'favicon-16.png', 'push-sw.js'],
       // La page du support est une vraie page à part : le service worker ne doit pas la remplacer par l'appli.
       workbox: { navigateFallbackDenylist: [/support\.html/], importScripts: ['push-sw.js'] },
       manifest: {

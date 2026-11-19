@@ -700,3 +700,7 @@ p.searching { display: flex; align-items: center; gap: 0.5rem; }
 
 .actions-sheet .menu-group { margin-top: 0.4rem; padding-top: 0.5rem; border-top: 1px solid var(--line); font-weight: 700; color: var(--ink); }
 .series-list .series-all { justify-content: flex-end; border-bottom: 0; }
+
+/* Logo dans l'en-tête et le rail */
+.brand-logo { width: 2.3rem; height: 2.3rem; flex: none; border-radius: 0.6rem; filter: drop-shadow(0 4px 8px rgb(0 0 0 / 0.28)); }
+@media (min-width: 1000px) { .brand-logo { width: 2.8rem; height: 2.8rem; } }

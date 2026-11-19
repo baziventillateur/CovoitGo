@@ -205,7 +205,7 @@ export default function App() {
     <div className={`app mode-${mode}`}>
       <header>
         <div className="mode-badge">
-          <span>{mode === 'driver' ? '🚗' : '🙋'}</span>
+          <img className="brand-logo" src={`${import.meta.env.BASE_URL}favicon.svg`} alt="CovoitGo" width={40} height={40} />
           <span>
             <small>CovoitGo <i>by PaceApp</i></small>
             <strong>Mode {mode === 'driver' ? 'conducteur' : 'passager'}</strong>
