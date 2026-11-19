@@ -53,6 +53,7 @@ export type Listing = {
   duration_min?: number | null;
   traffic_delay_min?: number | null;
   traffic_checked_at?: string | null;
+  series_id?: string | null;
 };
 
 export type EditTrip = {
@@ -216,6 +217,8 @@ export const api = {
     return data?.max_detour_min ?? 15;
   },
   setMaxDetour: (minutes: number) => rpc<number>('set_max_detour', { p_minutes: minutes }),
+  // Rattache les dates d'un trajet ou d'une recherche récurrente à une même série.
+  setSeries: (ids: string[], series: string) => rpc<void>('set_series', { p_ids: ids, p_series: series }),
   money: async () => (await rpc<MoneyRow[]>('my_money')) ?? [],
   cancelTrip: (id: string) => rpc<void>('cancel_trip', { p_trip_id: id }),
   pauseTrip: (id: string) => rpc<void>('pause_trip', { p_trip_id: id }),
@@ -283,12 +286,12 @@ export const api = {
       mode === 'driver'
         ? supabase
             .from('trips')
-            .select('id,origin_label,dest_label,window_start,window_end,seats,seats_taken,status,cost_share_cents,duration_min,traffic_delay_min,traffic_checked_at')
+            .select('id,origin_label,dest_label,window_start,window_end,seats,seats_taken,status,cost_share_cents,duration_min,traffic_delay_min,traffic_checked_at,series_id')
             .eq('driver_id', uid)
             .in('status', ['open', 'full', 'paused'])
         : supabase
             .from('requests')
-            .select('id,origin_label,dest_label,window_start,window_end,seats,note')
+            .select('id,origin_label,dest_label,window_start,window_end,seats,note,series_id')
             .eq('passenger_id', uid)
             .in('status', ['open', 'matched']);
     // Les plus proches d'abord (les trajets récurrents peuvent être nombreux).

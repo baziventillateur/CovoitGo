@@ -170,6 +170,9 @@ export function PublishForm({ mode, notify, onDone, onCancel, edit }: Props) {
 
     let ok = 0;
     let lastError = '';
+    // Récurrence : les allers d'un côté, les retours de l'autre, chacun dans sa série.
+    const series = [crypto.randomUUID(), crypto.randomUUID()];
+    const seriesIds: string[][] = [[], []];
     const first: string[] = [];
     let n = 0;
     for (const off of offsets) {
@@ -177,16 +180,20 @@ export function PublishForm({ mode, notify, onDone, onCancel, edit }: Props) {
         [from, to, addDays(new Date(when), off), quote?.route ?? null, price, quote?.minutes ?? null],
       ];
       if (roundTrip) legs.push([to, from, addDays(new Date(back), off), ret?.route ?? null, ret?.price ?? 0, ret?.minutes ?? null]);
-      for (const leg of legs) {
+      for (const [k, leg] of legs.entries()) {
         if (total > 1) setProgress(`${++n}/${total}`);
         const r = await publishOne(...leg);
         if (r.id) {
           ok++;
+          seriesIds[k].push(r.id);
           if (off === offsets[0]) first.push(r.id);
         } else lastError = r.error ?? '';
       }
     }
     setProgress(null);
+    if (recurring && !edit) {
+      await Promise.all(seriesIds.map((ids, k) => (ids.length > 1 ? api.setSeries(ids, series[k]) : null))).catch(() => {});
+    }
     if (!ok) {
       setBusy(false);
       return notify(lastError || 'Publication impossible', 'err');

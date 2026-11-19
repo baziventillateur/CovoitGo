@@ -12,6 +12,30 @@ import { Assistance } from './Assistance';
 type Celebrate = (text: string, emoji: string) => void;
 type Props = { mode: Mode; uid: string; meName: string; refreshKey: number; notify: Notify; celebrate: Celebrate; onChanged: () => void };
 
+// Annonces où quelqu'un a demandé, proposé ou réservé (elles restent toujours visibles).
+function busyListings(all: Match[], mode: Mode) {
+  return new Set(
+    all.filter((m) => m.role === mode && (m.status === 'proposed' || m.status === 'accepted')).map((m) => (mode === 'driver' ? m.trip_id : m.request_id)),
+  );
+}
+
+// Trajets récurrents : une seule date affichée par série (la prochaine), plus celles où il se passe quelque chose.
+// Les annonces arrivent triées par date de départ.
+function seriesView(list: Listing[], busy: Set<string>) {
+  const now = Date.now();
+  const next = new Map<string, string>();
+  const members = new Map<string, Listing[]>();
+  for (const l of list) {
+    if (!l.series_id || new Date(l.window_end).getTime() <= now) continue;
+    if (!next.has(l.series_id)) next.set(l.series_id, l.id);
+    members.set(l.series_id, [...(members.get(l.series_id) ?? []), l]);
+  }
+  const isNext = (l: Listing) => !!l.series_id && next.get(l.series_id) === l.id;
+  const shown = (l: Listing) => !l.series_id || isNext(l) || busy.has(l.id);
+  const hidden = (series: string) => (members.get(series) ?? []).filter((x) => !shown(x));
+  return { shown, isNext, hidden };
+}
+
 export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChanged }: Props) {
   const driver = mode === 'driver';
   const [matches, setMatches] = useState<Match[]>([]);
@@ -28,16 +52,20 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
   const [helpFor, setHelpFor] = useState<Match | null>(null);
   const [edit, setEdit] = useState<EditTrip | null>(null);
   const [menuFor, setMenuFor] = useState<Listing | null>(null);
-  const [showAll, setShowAll] = useState(false);
+  const [openSeries, setOpenSeries] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
       const [all, mine] = await Promise.all([api.matches(), api.listings(mode, uid)]);
-      // La recherche ne tourne que pour les annonces actives des 7 prochains jours.
+      // La recherche ne tourne que pour les annonces affichées (pour une série : la prochaine date,
+      // et celles où quelqu'un a déjà demandé), actives, dans les 7 prochains jours.
       const soon = Date.now() + 7 * 86400_000;
+      const view = seriesView(mine, busyListings(all, mode));
       const found = await Promise.all(
         mine.map((l) =>
-          l.status === 'paused' || new Date(l.window_start).getTime() > soon ? [] : api.candidates(mode, l.id).catch(() => []),
+          l.status === 'paused' || !view.shown(l) || new Date(l.window_start).getTime() > soon
+            ? []
+            : api.candidates(mode, l.id).catch(() => []),
         ),
       );
       // Trajets de demain au plus tard, pas encore vus côté circulation : deux au maximum par chargement.
@@ -131,6 +159,7 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
   }
 
   const active = matches.filter((m) => m.status === 'proposed' || m.status === 'accepted');
+  const view = seriesView(listings, busyListings(matches, mode));
   const toReview = matches.filter((m) => m.status === 'completed' && !m.reviewed_by_me);
   const done = matches.filter((m) => m.status === 'completed' && m.reviewed_by_me).slice(0, 3);
   // Une paire trajet/demande déjà mise en relation ne peut plus être proposée.
@@ -161,9 +190,9 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
         ),
     }))
     // Une annonce dont le créneau est passé ne reste affichée que s'il s'y passe encore quelque chose.
-    .filter((f) => f.mine.length > 0 || new Date(f.l.window_end).getTime() > now);
-  // Avec des trajets récurrents, seuls les premiers et ceux où il se passe quelque chose restent dépliés.
-  const visible = showAll ? folders : folders.filter((f, i) => i < 4 || f.mine.length > 0 || f.found.length > 0);
+    .filter((f) => f.mine.length > 0 || new Date(f.l.window_end).getTime() > now)
+    // Série récurrente : la prochaine date, plus celles où quelqu'un a demandé ou réservé.
+    .filter((f) => view.shown(f.l));
   const known = new Set(listings.map((l) => l.id));
   const orphans = active.filter((m) => !known.has(listingOf(m)));
 
@@ -291,7 +320,7 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
       ))}
 
       {folders.length > 0 && <h3 className="section">{driver ? 'Mes trajets' : 'Mes recherches'}</h3>}
-      {visible.map(({ l, mine, found }) => {
+      {folders.map(({ l, mine, found }) => {
         const confirmed = mine.some((m) => m.status === 'accepted');
         const left = (l.seats ?? 0) - (l.seats_taken ?? 0);
         // Passager : une fois le trajet confirmé, on ne propose plus d'autres conducteurs.
@@ -317,6 +346,58 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
                 </small>
                 {!driver && l.note && <small className="note">« {l.note} »</small>}
                 {paused && <span className="paused-tag">⏸ Suspendu · invisible pour les passagers</span>}
+                {l.series_id &&
+                  (() => {
+                    // Seule la carte de la prochaine date déplie les autres dates de la série.
+                    const others = view.isNext(l) ? view.hidden(l.series_id) : [];
+                    const open = openSeries === l.series_id && others.length > 0;
+                    return (
+                      <>
+                        <button
+                          type="button"
+                          className="series-tag"
+                          disabled={!others.length}
+                          aria-expanded={open}
+                          onClick={() => setOpenSeries(open ? null : l.series_id!)}
+                        >
+                          <span aria-hidden="true">🔁</span> Récurrent
+                          {others.length > 0 && ` · ${others.length} autre${others.length > 1 ? 's' : ''} date${others.length > 1 ? 's' : ''}`}
+                          {others.length > 0 && <i aria-hidden="true">{open ? '▴' : '▾'}</i>}
+                        </button>
+                        {open && (
+                          <ul className="series-list">
+                            {others.map((x) => (
+                              <li key={x.id}>
+                                <span>
+                                  {fmt(x.window_start)}
+                                  {x.status === 'paused' && ' · suspendu'}
+                                </span>
+                                {driver ? (
+                                  <button className="ghost more" aria-label="Actions sur cette date" disabled={busy} onClick={() => setMenuFor(x)}>
+                                    ⋯
+                                  </button>
+                                ) : (
+                                  <button
+                                    className="ghost small"
+                                    disabled={busy}
+                                    onClick={() =>
+                                      setAsk({
+                                        text: 'Supprimer cette date ? Elle sera définitivement supprimée.',
+                                        yes: 'Oui, supprimer',
+                                        run: () => run(() => api.cancelRequest(x.id), 'Supprimé'),
+                                      })
+                                    }
+                                  >
+                                    Supprimer
+                                  </button>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </>
+                    );
+                  })()}
               </div>
               {driver && !departed ? (
                 <button className="ghost more" aria-label="Actions sur ce trajet" disabled={busy} onClick={() => setMenuFor(l)}>
@@ -396,12 +477,6 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
           </div>
         );
       })}
-
-      {folders.length > visible.length && (
-        <button className="link center" onClick={() => setShowAll(true)}>
-          Voir les {folders.length - visible.length} autres
-        </button>
-      )}
 
       {orphans.length > 0 && (
         <div className="card folder">

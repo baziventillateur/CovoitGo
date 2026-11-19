@@ -562,4 +562,26 @@ begin
 end $$;
 reset role;
 
+-- Séries : rattachement réservé à ses propres annonces, une date modifiée reste dans la série.
+set role authenticated;
+do $$
+declare d uuid := '00000000-0000-0000-0000-000000000001'; p uuid := '00000000-0000-0000-0000-00000000000a';
+        a uuid; b uuid; c uuid; v_new uuid; sid uuid := gen_random_uuid();
+begin
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  a := publish_trip('Lille', 3.0573, 50.6292, 'Douai', 3.0800, 50.3700, now() + interval '8 days', now() + interval '8 days 1 hour', 3, 0);
+  b := publish_trip('Lille', 3.0573, 50.6292, 'Douai', 3.0800, 50.3700, now() + interval '9 days', now() + interval '9 days 1 hour', 3, 0);
+  perform set_config('request.jwt.claim.sub', p::text, false);
+  c := publish_request('Lille', 3.0573, 50.6292, 'Douai', 3.0800, 50.3700, now() + interval '8 days', now() + interval '8 days 1 hour');
+  perform set_series(array[a, b], sid);
+  if exists (select 1 from trips where id in (a, b) and series_id is not null) then raise exception 'ECHEC : série posée sur les trajets d''un autre'; end if;
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  perform set_series(array[a, b, c], sid);
+  if (select count(*) from trips where series_id = sid) <> 2 then raise exception 'ECHEC : série non posée'; end if;
+  if exists (select 1 from requests where id = c and series_id is not null) then raise exception 'ECHEC : série posée sur la recherche d''un autre'; end if;
+  v_new := replace_trip(a, 'Lille', 3.0573, 50.6292, 'Douai', 3.0800, 50.3700, now() + interval '8 days 1 hour', now() + interval '8 days 2 hours', 2, 0);
+  if (select series_id from trips where id = v_new) is distinct from sid then raise exception 'ECHEC : date modifiée sortie de la série'; end if;
+end $$;
+reset role;
+
 \echo 'TOUS LES TESTS PASSENT'
