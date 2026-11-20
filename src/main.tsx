@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import App from './App';
+import { setRegistration } from './pwa';
 import '@fontsource/barlow/400.css';
 import '@fontsource/barlow/500.css';
 import '@fontsource/barlow/600.css';
@@ -17,6 +18,7 @@ registerSW({
   immediate: true,
   onRegisteredSW(_url, reg) {
     if (!reg) return;
+    setRegistration(reg);
     let last = Date.now();
     const check = () => {
       if (!navigator.onLine || Date.now() - last < 5 * 60_000) return;

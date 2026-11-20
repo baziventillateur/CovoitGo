@@ -8,6 +8,7 @@ import { Home } from './Home';
 import { Offers } from './Offers';
 import { History } from './History';
 import { Profile } from './Profile';
+import { VersionTag } from './Version';
 import { Notifications } from './Notifications';
 import { Unsubscribe } from './Unsubscribe';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -25,6 +26,9 @@ function savedMode(): Mode | null {
 }
 
 type Tab = 'home' | 'offers' | 'history' | 'profile';
+const TABS: Tab[] = ['home', 'offers', 'history', 'profile'];
+// Le balayage ne démarre pas sur un champ, un formulaire, une fenêtre ou une carte.
+const NO_SWIPE = 'input, textarea, select, form, .sheet-backdrop, .leaflet-container, [data-noswipe]';
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -39,6 +43,10 @@ export default function App() {
   // « Proposer un trajet » depuis l'Accueil : ouvre le formulaire dans Mes propositions.
   const [publishNow, setPublishNow] = useState(false);
   const formShown = useCallback(() => setPublishNow(false), []);
+  // Changement de page animé : la nouvelle page arrive du côté de l'onglet choisi.
+  const [enter, setEnter] = useState<'left' | 'right' | null>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const swipe = useRef<{ x: number; y: number; t: number; dx: number; on: boolean; off: boolean } | null>(null);
   const [toast, setToast] = useState<{ text: string; kind: 'ok' | 'err' } | null>(null);
   const [meName, setMeName] = useState('');
   const [stamp, setStamp] = useState<{ text: string; emoji: string } | null>(null);
@@ -71,6 +79,68 @@ export default function App() {
       setTab('home');
     }, 650);
     window.setTimeout(() => setFlipTo(null), 1700);
+  }
+
+  function go(next: Tab) {
+    if (next === tab) return;
+    setEnter(TABS.indexOf(next) > TABS.indexOf(tab) ? 'right' : 'left');
+    setTab(next);
+    haptic('tap');
+    window.scrollTo({ top: 0 });
+  }
+
+  // Balayage gauche / droite entre les onglets : la page suit le doigt, puis passe à l'onglet
+  // voisin si le geste est assez long ou assez vif, sinon revient en place avec un petit rebond.
+  function onTouchStart(e: React.TouchEvent) {
+    swipe.current = null;
+    if (e.touches.length !== 1 || (e.target as HTMLElement).closest(NO_SWIPE)) return;
+    const p = e.touches[0];
+    swipe.current = { x: p.clientX, y: p.clientY, t: performance.now(), dx: 0, on: false, off: false };
+  }
+  function onTouchMove(e: React.TouchEvent) {
+    const s = swipe.current;
+    const el = mainRef.current;
+    if (!s || s.off || !el) return;
+    const p = e.touches[0];
+    const dx = p.clientX - s.x;
+    const dy = p.clientY - s.y;
+    if (!s.on) {
+      if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) {
+        s.off = true;
+        return;
+      }
+      if (Math.abs(dx) < 14 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+      s.on = true;
+    }
+    const i = TABS.indexOf(tab);
+    const edge = (dx > 0 && i === 0) || (dx < 0 && i === TABS.length - 1);
+    s.dx = edge ? dx * 0.22 : dx;
+    el.style.transition = 'none';
+    el.style.transform = `translateX(${s.dx}px)`;
+    el.style.opacity = String(1 - Math.min(0.3, Math.abs(s.dx) / 1000));
+  }
+  function onTouchEnd() {
+    const s = swipe.current;
+    const el = mainRef.current;
+    swipe.current = null;
+    if (!s?.on || !el) return;
+    const speed = s.dx / Math.max(1, performance.now() - s.t);
+    const i = TABS.indexOf(tab);
+    // Geste vif : il suffit de 40 px ; geste lent : il faut 70 px.
+    const fling = Math.abs(s.dx) > 40 && Math.abs(speed) > 0.45;
+    const next = s.dx < -70 || (fling && s.dx < 0) ? i + 1 : s.dx > 70 || (fling && s.dx > 0) ? i - 1 : i;
+    if (next !== i && next >= 0 && next < TABS.length) {
+      el.style.transform = '';
+      el.style.opacity = '';
+      go(TABS[next]);
+      return;
+    }
+    el.style.transition = 'transform 0.38s cubic-bezier(0.3, 1.45, 0.5, 1), opacity 0.2s';
+    el.style.transform = '';
+    el.style.opacity = '';
+    window.setTimeout(() => {
+      el.style.transition = '';
+    }, 400);
   }
 
   function setMode(m: Mode) {
@@ -214,7 +284,9 @@ export default function App() {
         <div className="mode-badge">
           <img className="brand-logo" src={`${import.meta.env.BASE_URL}icon.svg`} alt="CovoitGo" width={40} height={40} />
           <span>
-            <small>CovoitGo <i>by PaceApp</i></small>
+            <small>
+              CovoitGo <i>by PaceApp</i> <VersionTag />
+            </small>
             <strong>Mode {mode === 'driver' ? 'conducteur' : 'passager'}</strong>
           </span>
         </div>
@@ -230,7 +302,16 @@ export default function App() {
         </button>
       </header>
 
-      <main>
+      <main
+        key={tab}
+        ref={mainRef}
+        className={enter ? `enter-${enter}` : undefined}
+        onAnimationEnd={(e) => e.target === e.currentTarget && setEnter(null)}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
+      >
         {tab === 'home' && (
           <Home
             mode={mode}
@@ -242,9 +323,9 @@ export default function App() {
             onChanged={loadNotifs}
             onPublish={() => {
               setPublishNow(true);
-              setTab('offers');
+              go('offers');
             }}
-            onOffers={() => setTab('offers')}
+            onOffers={() => go('offers')}
           />
         )}
         {tab === 'offers' && (
@@ -257,7 +338,7 @@ export default function App() {
             onChanged={loadNotifs}
             startWithForm={publishNow}
             onFormShown={formShown}
-            onHome={() => setTab('home')}
+            onHome={() => go('home')}
           />
         )}
         {tab === 'history' && <History mode={mode} refreshKey={refreshKey} notify={notify} />}
@@ -267,17 +348,20 @@ export default function App() {
       </main>
 
       <nav>
-        <button className={tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}>
+        <span className="nav-ink" style={{ transform: `translateX(${TABS.indexOf(tab) * 100}%)` }} aria-hidden="true">
+          <i key={tab} />
+        </span>
+        <button className={tab === 'home' ? 'active' : ''} onClick={() => go('home')}>
           <span>🏠</span>Accueil
         </button>
-        <button className={tab === 'offers' ? 'active' : ''} onClick={() => setTab('offers')}>
+        <button className={tab === 'offers' ? 'active' : ''} onClick={() => go('offers')}>
           <span>{mode === 'driver' ? '📋' : '🔎'}</span>
           {mode === 'driver' ? 'Propositions' : 'Demandes'}
         </button>
-        <button className={tab === 'history' ? 'active' : ''} onClick={() => setTab('history')}>
+        <button className={tab === 'history' ? 'active' : ''} onClick={() => go('history')}>
           <span>🛣️</span>Trajets
         </button>
-        <button className={tab === 'profile' ? 'active' : ''} onClick={() => setTab('profile')}>
+        <button className={tab === 'profile' ? 'active' : ''} onClick={() => go('profile')}>
           <span>👤</span>Profil
         </button>
       </nav>
@@ -289,7 +373,7 @@ export default function App() {
           onOpen={(role) => {
             // Une notification de l'autre mode ne fait pas basculer sans prévenir.
             if (role !== mode) return setAskSwitch(role);
-            setTab('home');
+            go('home');
             setShowNotifs(false);
           }}
         />

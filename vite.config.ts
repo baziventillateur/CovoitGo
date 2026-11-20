@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { execSync } from 'node:child_process';
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -8,8 +9,29 @@ declare const process: { env: Record<string, string | undefined> };
 // baziventillateur.github.io/CovoitGo/ que sur son propre domaine, à la racine.
 const base = process.env.VITE_BASE ?? '/';
 
+// Numéro de version (comme NexBim) : 1.<nombre de publications>, avec la date et les dernières
+// nouveautés (titres des publications), lus dans l'historique git au moment du build.
+function version() {
+  const git = (cmd: string) => execSync(`git ${cmd}`, { encoding: 'utf-8' }).trim();
+  try {
+    const total = Number(git('rev-list --count HEAD'));
+    const lines = git('log -15 --date=iso-strict --pretty=format:%cd%x09%s').split('\n');
+    return {
+      number: `1.${total}`,
+      date: new Date().toISOString(),
+      history: lines.map((line, i) => {
+        const [date, ...title] = line.split('\t');
+        return { number: `1.${total - i}`, date, title: title.join(' ') };
+      }),
+    };
+  } catch {
+    return { number: 'locale', date: new Date().toISOString(), history: [] };
+  }
+}
+
 export default defineConfig({
   base,
+  define: { __VERSION__: JSON.stringify(version()) },
   plugins: [
     react(),
     VitePWA({
