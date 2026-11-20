@@ -42,6 +42,15 @@ export default function App() {
   const [refreshKey, setRefreshKey] = useState(0);
   // « Proposer un trajet » depuis l'Accueil : ouvre le formulaire dans Mes propositions.
   const [publishNow, setPublishNow] = useState(false);
+  // Conversation à ouvrir : notification de message touchée (dans l'appli ou sur le téléphone).
+  const [openChat, setOpenChat] = useState<string | null>(() => {
+    const id = new URLSearchParams(window.location.search).get('chat');
+    return id && /^[0-9a-f-]{36}$/i.test(id) ? id : null;
+  });
+  const chatOpened = useCallback(() => {
+    setOpenChat(null);
+    if (new URLSearchParams(window.location.search).has('chat')) window.history.replaceState(null, '', window.location.pathname);
+  }, []);
   const formShown = useCallback(() => setPublishNow(false), []);
   // Changement de page animé : la nouvelle page arrive du côté de l'onglet choisi.
   const [enter, setEnter] = useState<'left' | 'right' | null>(null);
@@ -173,7 +182,7 @@ export default function App() {
       // Une nouvelle notification signifie que quelque chose a bougé : on rafraîchit l'accueil.
       if (newest > lastNotifId.current) {
         if (lastNotifId.current > 0 && !list[0].read_at) {
-          notify(list[0].title);
+          notify(list[0].kind === 'message' ? `💬 ${list[0].title.replace('Message de ', '')} : ${list[0].body}` : list[0].title);
           // Un seul son par relève, pour la plus importante des nouvelles notifications.
           const fresh = list.filter((n) => n.id > lastNotifId.current && !n.read_at);
           const pick = (['accepted', 'arrived', 'proposal'] as const).find((snd) =>
@@ -181,13 +190,27 @@ export default function App() {
           );
           if (pick) playSound(pick);
         }
+        // Un simple message ne recharge pas les pages (la conversation et sa pastille vivent en direct).
+        const changed = lastNotifId.current === 0 || list.some((n) => n.id > lastNotifId.current && n.kind !== 'message');
         lastNotifId.current = newest;
-        setRefreshKey((k) => k + 1);
+        if (changed) setRefreshKey((k) => k + 1);
       }
     } catch {
       /* réseau momentanément indisponible : prochain passage */
     }
   }, [notify]);
+
+  // Notification de message touchée alors que l'appli était déjà ouverte.
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'open-chat' && typeof e.data.chat === 'string') {
+        setTab('home');
+        setOpenChat(e.data.chat);
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker?.removeEventListener('message', onMessage);
+  }, []);
 
   // Dernière visite, et appli installée ou non sur l'écran d'accueil (pour les indicateurs).
   useEffect(() => {
@@ -326,6 +349,8 @@ export default function App() {
               go('offers');
             }}
             onOffers={() => go('offers')}
+            openChat={openChat}
+            onChatOpened={chatOpened}
           />
         )}
         {tab === 'offers' && (
@@ -370,10 +395,11 @@ export default function App() {
         <Notifications
           items={notifs}
           onClose={() => setShowNotifs(false)}
-          onOpen={(role) => {
+          onOpen={(role, chat) => {
             // Une notification de l'autre mode ne fait pas basculer sans prévenir.
             if (role !== mode) return setAskSwitch(role);
             go('home');
+            if (chat) setOpenChat(chat);
             setShowNotifs(false);
           }}
         />

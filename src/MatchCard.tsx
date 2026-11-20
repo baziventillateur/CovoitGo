@@ -6,10 +6,21 @@ import { TripTracker } from './TripTracker';
 import { TrafficTag } from './Traffic';
 import { Approach } from './Approach';
 
-type Props = { m: Match; busy: boolean; onPay: () => void; onAdvance: () => void; onCancel: () => void; onUser: () => void; onHelp: () => void; meName: string };
+type Props = {
+  m: Match;
+  busy: boolean;
+  onPay: () => void;
+  onAdvance: () => void;
+  onCancel: () => void;
+  onUser: () => void;
+  onHelp: () => void;
+  onMessage: () => void;
+  unread: number;
+  meName: string;
+};
 
 // Carte d'un trajet accepté : étapes en direct, coordonnées, action suivante.
-export function MatchCard({ m, busy, onPay, onAdvance, onCancel, onUser, onHelp, meName }: Props) {
+export function MatchCard({ m, busy, onPay, onAdvance, onCancel, onUser, onHelp, onMessage, unread, meName }: Props) {
   const driver = m.role === 'driver';
   const name = m.other_name;
   const unpaid = m.pay_method === 'card' && !m.paid_at;
@@ -55,13 +66,17 @@ export function MatchCard({ m, busy, onPay, onAdvance, onCancel, onUser, onHelp,
           <small>{driver ? 'Ton passager' : 'Ton chauffeur'}</small>
           <Rating rating={m.other_rating} reviews={m.other_reviews} />
         </button>
-        {m.other_phone ? (
-          <a className="call" href={`tel:${m.other_phone}`}>
-            📞 {m.other_phone}
-          </a>
-        ) : (
-          <small>Numéro non renseigné</small>
-        )}
+        <div className="contact-actions">
+          <button className={'msg-btn' + (unread ? ' has-unread' : '')} onClick={onMessage}>
+            💬 Message
+            {unread > 0 && <span className="count">{unread}</span>}
+          </button>
+          {m.other_phone && (
+            <a className="call icon" href={`tel:${m.other_phone}`} aria-label={`Appeler ${name} au ${m.other_phone}`}>
+              📞
+            </a>
+          )}
+        </div>
       </div>
 
       {!driver && (

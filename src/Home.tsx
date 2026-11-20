@@ -8,6 +8,8 @@ import { Rating, ReviewCard, UserSheet } from './Reviews';
 import { ConfirmDialog } from './ConfirmDialog';
 import { Assistance } from './Assistance';
 import { Wallet } from './Wallet';
+import { Chat } from './Chat';
+import { supabase } from './supabase';
 import { busyListings, dayLabel, groupOffers, listingOf, shownIds } from './offers';
 
 type Props = {
@@ -20,12 +22,15 @@ type Props = {
   onChanged: () => void;
   onPublish: () => void;
   onOffers: () => void;
+  // Conversation à ouvrir (notification de message touchée).
+  openChat: string | null;
+  onChatOpened: () => void;
 };
 
 // Accueil : ce qui arrive. Les demandes reçues d'abord, puis les trajets confirmés, puis les personnes
 // qui cherchent sur la route. Chaque carte rappelle le trajet concerné (aller ou retour, date, heure)
 // et, dessous, la personne et ce qu'elle propose.
-export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChanged, onPublish, onOffers }: Props) {
+export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChanged, onPublish, onOffers, openChat, onChatOpened }: Props) {
   const driver = mode === 'driver';
   const [matches, setMatches] = useState<Match[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
@@ -41,6 +46,9 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
   // Chauffeur : frais d'espèces dus ; au-delà du seuil, il ne propose ni n'accepte de trajet en espèces.
   const [debt, setDebt] = useState<{ debt: number; blocked: boolean } | null>(null);
   const [showWallet, setShowWallet] = useState(false);
+  // Messagerie : conversation ouverte et messages non lus par trajet confirmé.
+  const [chatFor, setChatFor] = useState<string | null>(null);
+  const [unread, setUnread] = useState<Record<string, number>>({});
 
   const load = useCallback(async () => {
     try {
@@ -65,6 +73,7 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
         api.cashDebt().then(setDebt).catch(() => {});
       }
       setMatches(all.filter((m) => m.role === mode));
+      if (all.some((m) => m.status === 'accepted')) api.unreadMessages().then(setUnread).catch(() => {});
       // Paiement par carte commencé : on vérifie chez Stripe s'il a abouti (retour de la page de paiement, ou appli rouverte).
       const waiting = all.filter((m) => m.role === mode && m.status === 'accepted' && m.pay_method === 'card' && !m.paid_at);
       if (waiting.length) {
@@ -107,6 +116,27 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
   useEffect(() => {
     load();
   }, [load, refreshKey]);
+
+  // Un message arrive sur un trajet confirmé : la pastille du bouton « Message » se met à jour.
+  useEffect(() => {
+    const channel = supabase
+      .channel('unread-' + uid)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => {
+        api.unreadMessages().then(setUnread).catch(() => {});
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [uid]);
+
+  // Notification de message touchée : la conversation s'ouvre dès que le trajet est chargé.
+  useEffect(() => {
+    if (openChat && matches.some((m) => m.id === openChat && m.status === 'accepted')) {
+      setChatFor(openChat);
+      onChatOpened();
+    }
+  }, [openChat, matches, onChatOpened]);
 
   // « big » : action importante, validée par un tampon animé et une vibration.
   async function run(action: () => Promise<unknown>, success?: string, big?: string) {
@@ -203,6 +233,8 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
             }
             onUser={person(m)}
             onHelp={() => setHelpFor(m)}
+            onMessage={() => setChatFor(m.id)}
+            unread={chatFor === m.id ? 0 : unread[m.id] ?? 0}
             meName={meName}
             onCancel={() =>
               setAsk({
@@ -450,6 +482,20 @@ export function Home({ mode, uid, meName, refreshKey, notify, celebrate, onChang
           }}
         />
       )}
+      {chatFor &&
+        (() => {
+          const m = matches.find((x) => x.id === chatFor);
+          return m ? (
+            <Chat
+              m={m}
+              uid={uid}
+              onClose={() => {
+                setChatFor(null);
+                setUnread((u) => ({ ...u, [m.id]: 0 }));
+              }}
+            />
+          ) : null;
+        })()}
       {helpFor && <Assistance m={helpFor} notify={notify} onClose={() => setHelpFor(null)} />}
       {viewUser && <UserSheet userId={viewUser.id} name={viewUser.name} onClose={() => setViewUser(null)} />}
     </>

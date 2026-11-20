@@ -700,4 +700,68 @@ begin
   end if;
 end $$;
 
+-- Messagerie : ouverte entre les deux participants d'un trajet confirmé, fermée ensuite.
+do $$
+declare d uuid := '00000000-0000-0000-0000-000000000001'; p uuid := '00000000-0000-0000-0000-00000000000a';
+        v_trip uuid; v_req uuid; v_m uuid; n int; other uuid;
+begin
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  v_trip := publish_trip('Reims', 4.0317, 49.2583, 'Tinqueux', 3.9926, 49.2496, now() + interval '20 minutes', now() + interval '2 hours', 3, 0);
+  perform set_config('request.jwt.claim.sub', p::text, false);
+  v_req := publish_request('Reims', 4.0312, 49.2580, 'Tinqueux', 3.9930, 49.2500, now() + interval '20 minutes', now() + interval '2 hours');
+  v_m := propose_match(v_trip, v_req);
+  -- Pas de messagerie avant l'acceptation
+  begin perform send_message(v_m, 'Bonjour'); raise exception 'ECHEC : message avant acceptation';
+  exception when others then if sqlerrm not like 'La conversation est fermée%' then raise exception 'ECHEC messagerie fermée : %', sqlerrm; end if; end;
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  perform respond_match(v_m, true);
+  delete from notifications where user_id in (d, p) and kind = 'message';
+
+  perform set_config('request.jwt.claim.sub', p::text, false);
+  perform send_message(v_m, '  Bonjour, vous êtes où ?  ');
+  perform send_message(v_m, 'Je suis devant la gare');
+  if (select body from messages where match_id = v_m order by id limit 1) <> 'Bonjour, vous êtes où ?' then raise exception 'ECHEC nettoyage du message'; end if;
+  -- Une rafale = une seule notification, avec le dernier message
+  if (select count(*) from notifications where user_id = d and kind = 'message' and match_id = v_m) <> 1
+     or (select body from notifications where user_id = d and kind = 'message' and match_id = v_m) <> 'Je suis devant la gare' then
+    raise exception 'ECHEC notification de message';
+  end if;
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  if (select unread from my_unread_messages() where match_id = v_m) <> 2 then raise exception 'ECHEC messages non lus'; end if;
+  perform chat_mark_read(v_m);
+  if exists (select 1 from my_unread_messages() where match_id = v_m) then raise exception 'ECHEC lecture'; end if;
+  if exists (select 1 from notifications where user_id = d and kind = 'message' and read_at is null) then raise exception 'ECHEC notification restée non lue'; end if;
+  -- Le conducteur lit la conversation : sa réponse ne notifie pas le passager s'il l'a ouverte aussi
+  perform send_message(v_m, 'J''arrive dans 5 minutes');
+  if (select count(*) from notifications where user_id = p and kind = 'message') <> 0 then raise exception 'ECHEC : notifié alors que la conversation est ouverte'; end if;
+  begin perform send_message(v_m, ''); raise exception 'ECHEC : message vide accepté';
+  exception when others then if sqlerrm not like 'Message vide%' then raise exception 'ECHEC message vide : %', sqlerrm; end if; end;
+  begin perform send_message(v_m, repeat('a', 501)); raise exception 'ECHEC : message trop long accepté';
+  exception when others then if sqlerrm not like 'Message trop long%' then raise exception 'ECHEC message long : %', sqlerrm; end if; end;
+  -- Un tiers ne peut ni écrire ni lire
+  other := '00000000-0000-0000-0000-000000000002';
+  perform set_config('request.jwt.claim.sub', other::text, false);
+  begin perform send_message(v_m, 'Coucou'); raise exception 'ECHEC : un tiers écrit';
+  exception when others then if sqlerrm not like 'Conversation introuvable%' then raise exception 'ECHEC tiers : %', sqlerrm; end if; end;
+  if has_table_privilege('authenticated', 'messages', 'insert') then raise exception 'ECHEC : messages modifiables par l''appli'; end if;
+  -- Trajet terminé : conversation fermée
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  perform advance_match(v_m); perform advance_match(v_m); perform advance_match(v_m);
+  perform set_config('request.jwt.claim.sub', p::text, false);
+  begin perform send_message(v_m, 'Merci !'); raise exception 'ECHEC : message après la course';
+  exception when others then if sqlerrm not like 'La conversation est fermée%' then raise exception 'ECHEC fermeture : %', sqlerrm; end if; end;
+end $$;
+
+-- Lecture des messages : seulement les deux participants (règles d'accès)
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000002', false);
+do $$ begin
+  if exists (select 1 from messages) then raise exception 'ECHEC : un tiers lit les messages'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+do $$ begin
+  if (select count(*) from messages) < 3 then raise exception 'ECHEC : le passager ne lit pas sa conversation'; end if;
+end $$;
+reset role;
+
 \echo 'TOUS LES TESTS PASSENT'

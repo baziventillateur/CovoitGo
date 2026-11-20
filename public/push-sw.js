@@ -23,7 +23,19 @@ self.addEventListener('notificationclick', (event) => {
   const url = (event.notification.data && event.notification.data.url) || self.registration.scope;
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
-      for (const c of list) if ('focus' in c) return c.focus();
+      // Notification de message : l'appli déjà ouverte affiche la conversation.
+      let chat = null;
+      try {
+        chat = new URL(url, self.registration.scope).searchParams.get('chat');
+      } catch (e) {
+        chat = null;
+      }
+      for (const c of list) {
+        if ('focus' in c) {
+          if (chat) c.postMessage({ type: 'open-chat', chat });
+          return c.focus();
+        }
+      }
       return self.clients.openWindow(url);
     }),
   );

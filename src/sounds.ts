@@ -67,7 +67,7 @@ export function playSound(sound: Sound) {
 
 // Quel son pour quelle notification ? null = silencieux.
 export function soundFor(kind: string, title: string): Sound | null {
-  if (kind === 'proposal') return 'proposal';
+  if (kind === 'proposal' || kind === 'message') return 'proposal';
   if (kind === 'accepted') return 'accepted';
   if (kind === 'stage' && title.includes('arrivé')) return 'arrived';
   return null;

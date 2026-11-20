@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
     .eq('id', id)
     .is('pushed_at', null)
     .gte('created_at', new Date(Date.now() - 5 * 60_000).toISOString())
-    .select('user_id,title,body,match_id');
+    .select('user_id,title,body,match_id,kind');
   const n = claimed?.[0];
   if (!n) return json({ ok: true, sent: 0 });
 
@@ -58,7 +58,14 @@ Deno.serve(async (req) => {
   if (!subs?.length) return json({ ok: true, sent: 0 });
 
   const vapid = await keys();
-  const payload = JSON.stringify({ title: n.title, body: n.body, tag: n.match_id ? `m${n.match_id}` : `n${id}`, url: APP_URL });
+  // Un message ouvre directement la conversation ; ses notifications s'empilent à part.
+  const chat = n.kind === 'message' && n.match_id;
+  const payload = JSON.stringify({
+    title: n.title,
+    body: n.body,
+    tag: chat ? `c${n.match_id}` : n.match_id ? `m${n.match_id}` : `n${id}`,
+    url: chat ? `${APP_URL}?chat=${n.match_id}` : APP_URL,
+  });
   let sent = 0;
   await Promise.all(subs.map(async (s) => {
     let host = '';

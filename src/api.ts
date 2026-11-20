@@ -58,6 +58,9 @@ export type Listing = {
   is_return?: boolean;
 };
 
+// Messagerie d'un trajet confirmé.
+export type ChatMessage = { id: number; match_id: string; sender_id: string; body: string; created_at: string };
+
 // Un trajet réalisé (historique) : conducteur, un trajet avec ses passagers ; passager, chaque trajet.
 export type HistoryItem = {
   listing_id: string;
@@ -237,6 +240,28 @@ export const api = {
   setMaxDetour: (minutes: number) => rpc<number>('set_max_detour', { p_minutes: minutes }),
   // Rattache les dates d'un trajet ou d'une recherche récurrente à une même série.
   setSeries: (ids: string[], series: string) => rpc<void>('set_series', { p_ids: ids, p_series: series }),
+  // Messagerie (trajet confirmé seulement ; fermée après la course).
+  async chatMessages(matchId: string, afterId = 0): Promise<ChatMessage[]> {
+    const { data, error } = await supabase
+      .from('messages')
+      .select('id,match_id,sender_id,body,created_at')
+      .eq('match_id', matchId)
+      .gt('id', afterId)
+      .order('id', { ascending: true })
+      .limit(300);
+    if (error) throw new Error(error.message);
+    return (data ?? []) as ChatMessage[];
+  },
+  async chatReadOf(matchId: string, userId: string): Promise<string | null> {
+    const { data } = await supabase.from('chat_reads').select('read_at').eq('match_id', matchId).neq('user_id', userId).maybeSingle();
+    return data?.read_at ?? null;
+  },
+  sendMessage: (matchId: string, body: string) => rpc<number>('send_message', { p_match_id: matchId, p_body: body }),
+  chatMarkRead: (matchId: string) => rpc<void>('chat_mark_read', { p_match_id: matchId }),
+  async unreadMessages(): Promise<Record<string, number>> {
+    const rows = (await rpc<{ match_id: string; unread: number }[]>('my_unread_messages')) ?? [];
+    return Object.fromEntries(rows.map((r) => [r.match_id, r.unread]));
+  },
   setRound: (ids: string[], round: string, returnIds: string[]) =>
     rpc<void>('set_round', { p_ids: ids, p_round: round, p_return_ids: returnIds }),
   // Toute une proposition d'un coup (dates passées et dates avec passager confirmé épargnées).

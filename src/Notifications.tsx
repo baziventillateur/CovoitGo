@@ -14,9 +14,10 @@ const ICONS: Record<string, string> = {
   pay: '💳',
   paid: '✅',
   refund: '↩️',
+  message: '💬',
 };
 
-type Props = { items: Notification[]; onClose: () => void; onOpen: (role: Mode) => void };
+type Props = { items: Notification[]; onClose: () => void; onOpen: (role: Mode, chat: string | null) => void };
 type Group = { key: string; role: Mode; items: Notification[]; unread: number };
 
 // Les notifications sont regroupées par trajet : une carte par personne et par voyage,
@@ -55,7 +56,7 @@ export function Notifications({ items, onClose, onOpen }: Props) {
             const m = matches[g.key];
             return (
               <li key={g.key} className={g.unread ? 'unread' : ''}>
-                <button onClick={() => onOpen(g.role)}>
+                <button onClick={() => onOpen(g.role, g.items[0].kind === 'message' ? g.items[0].match_id : null)}>
                   <span className="avatar">{m ? m.other_name.charAt(0).toUpperCase() : '🔔'}</span>
                   <span className="contact-info">
                     <strong>
