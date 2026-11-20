@@ -54,6 +54,19 @@ export type Listing = {
   traffic_delay_min?: number | null;
   traffic_checked_at?: string | null;
   series_id?: string | null;
+  round_id?: string | null;
+  is_return?: boolean;
+};
+
+// Un trajet réalisé (historique) : conducteur, un trajet avec ses passagers ; passager, chaque trajet.
+export type HistoryItem = {
+  listing_id: string;
+  origin_label: string;
+  dest_label: string;
+  depart_at: string;
+  done_at: string;
+  people: { id: string; name: string }[];
+  cents: number | null;
 };
 
 export type EditTrip = {
@@ -224,6 +237,12 @@ export const api = {
   setMaxDetour: (minutes: number) => rpc<number>('set_max_detour', { p_minutes: minutes }),
   // Rattache les dates d'un trajet ou d'une recherche récurrente à une même série.
   setSeries: (ids: string[], series: string) => rpc<void>('set_series', { p_ids: ids, p_series: series }),
+  setRound: (ids: string[], round: string, returnIds: string[]) =>
+    rpc<void>('set_round', { p_ids: ids, p_round: round, p_return_ids: returnIds }),
+  // Toute une proposition d'un coup (dates passées et dates avec passager confirmé épargnées).
+  listingsAction: (ids: string[], action: 'pause' | 'resume' | 'cancel' | 'cancel_requests') =>
+    rpc<{ done: number; kept: number }>('listings_action', { p_ids: ids, p_action: action }),
+  history: (mode: Mode, limit = 200) => rpc<HistoryItem[]>('my_history', { p_role: mode, p_limit: limit }).then((r) => r ?? []),
   // Action sur toutes les dates à venir d'une série ; les dates avec un passager confirmé sont gardées.
   seriesAction: (series: string, action: 'pause' | 'resume' | 'cancel' | 'cancel_requests') =>
     rpc<{ done: number; kept: number }>('series_action', { p_series: series, p_action: action }),
@@ -294,17 +313,17 @@ export const api = {
       mode === 'driver'
         ? supabase
             .from('trips')
-            .select('id,origin_label,dest_label,window_start,window_end,seats,seats_taken,status,cost_share_cents,duration_min,traffic_delay_min,traffic_checked_at,series_id')
+            .select('id,origin_label,dest_label,window_start,window_end,seats,seats_taken,status,cost_share_cents,duration_min,traffic_delay_min,traffic_checked_at,series_id,round_id,is_return')
             .eq('driver_id', uid)
             .in('status', ['open', 'full', 'paused'])
         : supabase
             .from('requests')
-            .select('id,origin_label,dest_label,window_start,window_end,seats,note,series_id')
+            .select('id,origin_label,dest_label,window_start,window_end,seats,note,series_id,round_id,is_return')
             .eq('passenger_id', uid)
             .in('status', ['open', 'matched']);
     // Les plus proches d'abord (les trajets récurrents peuvent être nombreux).
     const since = new Date(Date.now() - 86400_000).toISOString();
-    const { data, error } = await q.gte('window_end', since).order('window_start', { ascending: true }).limit(60);
+    const { data, error } = await q.gte('window_end', since).order('window_start', { ascending: true }).limit(200);
     if (error) throw new Error(error.message);
     return (data ?? []) as Listing[];
   },

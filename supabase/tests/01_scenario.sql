@@ -664,4 +664,40 @@ begin
   delete from wallet_entries where user_id = d;
 end $$;
 
+-- Propositions : aller-retour relié, actions sur toute la proposition, historique des trajets réalisés.
+do $$
+declare d uuid := '00000000-0000-0000-0000-000000000001'; p uuid := '00000000-0000-0000-0000-00000000000a';
+        a1 uuid; a2 uuid; r1 uuid; r2 uuid; v_round uuid := gen_random_uuid(); v_new uuid; v_res jsonb; n int;
+begin
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  a1 := publish_trip('Metz', 6.1757, 49.1193, 'Thionville', 6.1683, 49.3579, now() + interval '1 day', now() + interval '1 day 2 hours', 3, 0);
+  r1 := publish_trip('Thionville', 6.1683, 49.3579, 'Metz', 6.1757, 49.1193, now() + interval '1 day 9 hours', now() + interval '1 day 11 hours', 3, 0);
+  a2 := publish_trip('Metz', 6.1757, 49.1193, 'Thionville', 6.1683, 49.3579, now() + interval '2 days', now() + interval '2 days 2 hours', 3, 0);
+  r2 := publish_trip('Thionville', 6.1683, 49.3579, 'Metz', 6.1757, 49.1193, now() + interval '2 days 9 hours', now() + interval '2 days 11 hours', 3, 0);
+  perform set_round(array[a1, r1, a2, r2], v_round, array[r1, r2]);
+  if (select count(*) from trips where round_id = v_round) <> 4 or (select count(*) from trips where round_id = v_round and is_return) <> 2 then
+    raise exception 'ECHEC aller-retour non relié';
+  end if;
+  -- Une date modifiée garde son aller-retour
+  v_new := replace_trip(r2, 'Thionville', 6.1683, 49.3579, 'Metz', 6.1757, 49.1193, now() + interval '2 days 10 hours', now() + interval '2 days 12 hours', 3, 0);
+  if not (select round_id = v_round and is_return from trips where id = v_new) then raise exception 'ECHEC modification hors aller-retour'; end if;
+  -- Toute la proposition : suspendre puis supprimer
+  v_res := listings_action(array[a1, r1, a2, v_new], 'pause');
+  if (v_res ->> 'done')::int <> 4 then raise exception 'ECHEC suspension groupée : %', v_res; end if;
+  v_res := listings_action(array[a1, r1, a2, v_new], 'cancel');
+  if (v_res ->> 'done')::int <> 4 or exists (select 1 from trips where round_id = v_round and status <> 'cancelled') then
+    raise exception 'ECHEC suppression groupée : %', v_res;
+  end if;
+  -- Les dates d'un autre ne bougent pas
+  perform set_config('request.jwt.claim.sub', p::text, false);
+  if (listings_action(array[a1], 'resume') ->> 'done')::int <> 0 then raise exception 'ECHEC : action sur les dates d''un autre'; end if;
+  -- Historique : les trajets terminés du scénario
+  select count(*) into n from my_history('passenger', 50);
+  if n = 0 then raise exception 'ECHEC historique passager vide'; end if;
+  perform set_config('request.jwt.claim.sub', d::text, false);
+  if not exists (select 1 from my_history('driver', 50) where cents is not null and jsonb_array_length(people) >= 1) then
+    raise exception 'ECHEC historique conducteur';
+  end if;
+end $$;
+
 \echo 'TOUS LES TESTS PASSENT'

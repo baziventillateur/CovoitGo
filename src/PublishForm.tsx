@@ -194,6 +194,10 @@ export function PublishForm({ mode, notify, onDone, onCancel, edit }: Props) {
     if (recurring && !edit) {
       await Promise.all(seriesIds.map((ids, k) => (ids.length > 1 ? api.setSeries(ids, series[k]) : null))).catch(() => {});
     }
+    // Aller-retour : l'aller et le retour forment une seule proposition (une seule carte).
+    if (roundTrip && !edit && seriesIds[1].length) {
+      await api.setRound([...seriesIds[0], ...seriesIds[1]], crypto.randomUUID(), seriesIds[1]).catch(() => {});
+    }
     if (!ok) {
       setBusy(false);
       return notify(lastError || 'Publication impossible', 'err');
@@ -207,7 +211,7 @@ export function PublishForm({ mode, notify, onDone, onCancel, edit }: Props) {
 
   return (
     <form className="card form" onSubmit={submit}>
-      <h2>{edit ? 'Modifier le trajet' : driver ? 'Publier un trajet' : 'Chercher un trajet'}</h2>
+      <h2>{edit ? 'Modifier le trajet' : driver ? 'Proposer un trajet' : 'Chercher un trajet'}</h2>
       <PlaceInput label="Départ" value={from} onChange={setFrom} />
       <PlaceInput label="Arrivée" value={to} onChange={setTo} />
       <WhenPicker

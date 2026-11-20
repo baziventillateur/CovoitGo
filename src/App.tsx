@@ -5,6 +5,8 @@ import { feeConfig } from './format';
 import { api, type Mode, type Notification, type Notify } from './api';
 import { Auth } from './Auth';
 import { Home } from './Home';
+import { Offers } from './Offers';
+import { History } from './History';
 import { Profile } from './Profile';
 import { Notifications } from './Notifications';
 import { Unsubscribe } from './Unsubscribe';
@@ -22,16 +24,21 @@ function savedMode(): Mode | null {
   }
 }
 
+type Tab = 'home' | 'offers' | 'history' | 'profile';
+
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
   const [mode, setModeState] = useState<Mode | null>(savedMode);
-  const [tab, setTab] = useState<'home' | 'profile'>(() =>
+  const [tab, setTab] = useState<Tab>(() =>
     new URLSearchParams(window.location.search).has('versement') ? 'profile' : 'home',
   );
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const [showNotifs, setShowNotifs] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  // « Proposer un trajet » depuis l'Accueil : ouvre le formulaire dans Mes propositions.
+  const [publishNow, setPublishNow] = useState(false);
+  const formShown = useCallback(() => setPublishNow(false), []);
   const [toast, setToast] = useState<{ text: string; kind: 'ok' | 'err' } | null>(null);
   const [meName, setMeName] = useState('');
   const [stamp, setStamp] = useState<{ text: string; emoji: string } | null>(null);
@@ -224,9 +231,37 @@ export default function App() {
       </header>
 
       <main>
-        {tab === 'home' ? (
-          <Home mode={mode} uid={uid} meName={meName} refreshKey={refreshKey} notify={notify} celebrate={celebrate} onChanged={loadNotifs} />
-        ) : (
+        {tab === 'home' && (
+          <Home
+            mode={mode}
+            uid={uid}
+            meName={meName}
+            refreshKey={refreshKey}
+            notify={notify}
+            celebrate={celebrate}
+            onChanged={loadNotifs}
+            onPublish={() => {
+              setPublishNow(true);
+              setTab('offers');
+            }}
+            onOffers={() => setTab('offers')}
+          />
+        )}
+        {tab === 'offers' && (
+          <Offers
+            mode={mode}
+            uid={uid}
+            refreshKey={refreshKey}
+            notify={notify}
+            celebrate={celebrate}
+            onChanged={loadNotifs}
+            startWithForm={publishNow}
+            onFormShown={formShown}
+            onHome={() => setTab('home')}
+          />
+        )}
+        {tab === 'history' && <History mode={mode} refreshKey={refreshKey} notify={notify} />}
+        {tab === 'profile' && (
           <Profile uid={uid} notify={notify} mode={mode} onSwitchMode={() => setAskSwitch(mode === 'driver' ? 'passenger' : 'driver')} />
         )}
       </main>
@@ -234,6 +269,13 @@ export default function App() {
       <nav>
         <button className={tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}>
           <span>🏠</span>Accueil
+        </button>
+        <button className={tab === 'offers' ? 'active' : ''} onClick={() => setTab('offers')}>
+          <span>{mode === 'driver' ? '📋' : '🔎'}</span>
+          {mode === 'driver' ? 'Propositions' : 'Demandes'}
+        </button>
+        <button className={tab === 'history' ? 'active' : ''} onClick={() => setTab('history')}>
+          <span>🛣️</span>Trajets
         </button>
         <button className={tab === 'profile' ? 'active' : ''} onClick={() => setTab('profile')}>
           <span>👤</span>Profil

@@ -709,3 +709,78 @@ p.searching { display: flex; align-items: center; gap: 0.5rem; }
 /* Logo dans l'en-tête et le rail */
 .brand-logo { width: 2.3rem; height: 2.3rem; flex: none; border-radius: 0.6rem; filter: drop-shadow(0 4px 8px rgb(0 0 0 / 0.28)); }
 @media (min-width: 1000px) { .brand-logo { width: 2.8rem; height: 2.8rem; } }
+
+/* ---------- Trois pages : Accueil (ce qui arrive), Mes propositions (ce que j'ai publié), Mes trajets (réalisés) ---------- */
+.page-title { margin: 0.1rem 0 -0.15rem; font-size: 1.35rem; line-height: 1.1; color: var(--ink); }
+.count-pill { background: var(--danger); color: #fff; font-size: 0.7rem; font-weight: 800; padding: 0.05rem 0.42rem; border-radius: 999px; font-family: 'Barlow', system-ui, sans-serif; }
+.inbox-group { display: grid; gap: 0.5rem; }
+
+/* Sens du trajet : l'aller à la couleur du mode, le retour en bitume. */
+.leg-tag { display: inline-block; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.02em; padding: 0.1rem 0.45rem; border-radius: 6px; color: #fff; background: var(--brand); flex: none; line-height: 1.35; }
+.leg-tag.back { background: var(--asphalt); }
+
+/* Accueil : le trajet concerné en tête de carte, la personne et sa demande dessous. */
+.ticket { gap: 0; }
+.ticket-head { display: grid; gap: 0.12rem; padding-bottom: 0.5rem; min-width: 0; }
+.ticket-tags { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; font-size: 0.8rem; }
+.ticket-day { font-weight: 700; color: var(--ink); }
+.ticket-day::first-letter { text-transform: uppercase; }
+.ticket-time { color: var(--muted); font-variant-numeric: tabular-nums; }
+.rec-dot { font-size: 0.72rem; }
+.ticket-route { font-size: 0.98rem; line-height: 1.25; overflow-wrap: anywhere; }
+.ticket-head small { color: var(--muted); font-size: 0.78rem; }
+.sub-section { display: block; font-size: 0.72rem; font-weight: 700; color: var(--muted); padding: 0.45rem 0 0; border-top: 1px solid var(--line); }
+.sub-section + .block { border-top: 0; }
+
+/* Mes propositions : une carte par publication, l'aller et le retour l'un sous l'autre. */
+.offer { gap: 0.45rem; }
+.offer-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; min-height: 1.8rem; }
+.offer-tags { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; min-width: 0; }
+.kind-tag { font-size: 0.72rem; font-weight: 800; color: var(--brand-dark); background: var(--brand-soft); padding: 0.12rem 0.5rem; border-radius: 999px; }
+.rec-tag { font-size: 0.72rem; font-weight: 600; color: var(--muted); }
+.offer-route { font-size: 1.02rem; line-height: 1.25; overflow-wrap: anywhere; }
+.legs { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; }
+.leg { display: flex; align-items: center; gap: 0.5rem; background: var(--bg); border-radius: 11px; padding: 0.38rem 0.4rem 0.38rem 0.5rem; }
+.leg.paused { opacity: 0.6; }
+.leg-info { display: grid; flex: 1; min-width: 0; }
+.leg-info strong { display: block; font-size: 0.86rem; font-variant-numeric: tabular-nums; }
+.leg-info strong::first-letter { text-transform: uppercase; }
+.leg-info small { color: var(--muted); font-size: 0.75rem; }
+.leg .more { width: 1.75rem; height: 1.75rem; font-size: 0.95rem; background: #fff; }
+.status-line { margin: 0; display: flex; align-items: center; gap: 0.45rem; font-size: 0.79rem; color: var(--muted); }
+.status-line .pulse { width: 8px; height: 8px; flex: none; }
+.status-line.ok { color: var(--brand-dark); font-weight: 600; }
+button.status-line.alert { background: #fef2f2; color: var(--danger); font-weight: 700; border-radius: 10px; padding: 0.4rem 0.55rem; text-align: left; box-shadow: none; }
+.status-line .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); flex: none; }
+.dates-toggle { justify-self: start; background: none; padding: 0.1rem 0; color: var(--brand-dark); font-weight: 700; font-size: 0.79rem; box-shadow: none; }
+
+/* Mes trajets : l'historique */
+.history { gap: 0.35rem; }
+.history-sum { display: flex; flex-wrap: wrap; gap: 0.3rem 1.1rem; font-size: 0.8rem; color: var(--muted); padding-bottom: 0.2rem; }
+.history-sum strong { color: var(--ink); font-size: 1.15rem; font-family: 'Barlow Semi Condensed', 'Barlow', sans-serif; margin-right: 0.15rem; }
+.history-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.history-row { display: flex; align-items: center; gap: 0.55rem; padding: 0.45rem 0; border-top: 1px solid var(--line); }
+.history-check { width: 1.45rem; height: 1.45rem; border-radius: 50%; background: var(--brand-soft); color: var(--brand-dark); display: grid; place-items: center; font-weight: 800; font-size: 0.78rem; flex: none; }
+.history-info { flex: 1; min-width: 0; display: grid; }
+.history-info strong { font-size: 0.86rem; overflow-wrap: anywhere; line-height: 1.25; }
+.history-info small { color: var(--muted); font-size: 0.75rem; }
+.history-row b { font-variant-numeric: tabular-nums; font-size: 0.85rem; white-space: nowrap; color: var(--ink); }
+.history-row b.plus { color: var(--brand-dark); }
+.history > .ghost.small { justify-self: start; margin-top: 0.2rem; }
+.history-sheet .month { margin: 0.7rem 0 0.1rem; font-size: 0.82rem; color: var(--muted); }
+.history-sheet .month::first-letter { text-transform: uppercase; }
+
+@media (min-width: 640px) {
+  nav { width: 27rem; }
+}
+@media (min-width: 1000px) {
+  main > .card.offer { grid-column: auto; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+  main > .card.offer:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
+  main > .inbox-group, main > .card.history { max-width: 720px; }
+  nav { width: auto; }
+}
+nav { grid-template-columns: repeat(4, 1fr); }
+nav button { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.leg .leg-tag { min-width: 3.4rem; text-align: center; }
+.block.answer .avatar { background: #fff; box-shadow: var(--shadow-1); }
+@media (min-width: 1000px) { nav { grid-template-columns: 1fr; } }
